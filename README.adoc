@@ -1,4 +1,4 @@
-= antlr4-autosuggest - a Java autosuggest engine for ANTLR4 grammars
+= Java autosuggest engine for ANTLR4 grammars
 Oran Epelbaum
 :groupid: com.intigua
 :version: 0.0.1-SNAPSHOT
@@ -6,7 +6,7 @@ Oran Epelbaum
 
 To get started, have a look at the unit tests.
 
-image:https://circleci.com/gh/oranoran/antlr4-autosuggest.svg?style=shield&circle-token=:circle-token
+image:https://circleci.com/gh/oranoran/antlr4-autosuggest.svg?style=shield&circle-token=:circle-token[link="https://circleci.com/gh/oranoran/antlr4-autosuggest"]
 
 == Getting antlr-autosuggest
 
