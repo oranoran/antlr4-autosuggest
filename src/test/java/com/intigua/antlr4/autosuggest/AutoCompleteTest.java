@@ -164,20 +164,4 @@ public class AutoCompleteTest {
             throw new IllegalArgumentException(e);
         }
     }
-    
-    public void x() {
-        LexerAndParserFactory lexerAndParserFactory = new LexerAndParserFactory() {
-            
-            @Override
-            public Parser createParser(TokenStream tokenStream) {
-                return new myGeneratedParser(tokenStream);
-            }
-            
-            @Override
-            public Lexer createLexer(CharStream input) {
-                return new myGeneratedLexer(input);
-            }
-        };
-        new AutoComplete(lexerAndParserFactory, "CompleteThisTex").suggestCompletions();
-    }
 }
