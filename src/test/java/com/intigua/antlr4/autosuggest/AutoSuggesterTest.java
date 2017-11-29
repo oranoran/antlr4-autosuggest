@@ -20,7 +20,7 @@ import org.junit.Test;
 import com.intigua.antlr4.autosuggest.AutoSuggester;
 import com.intigua.antlr4.autosuggest.LexerAndParserFactory;
 
-public class AutoCompleteTest {
+public class AutoSuggesterTest {
 
     private LexerAndParserFactory lexerAndParserFactory;
     private Collection<String> suggestedCompletions;
@@ -127,6 +127,21 @@ public class AutoCompleteTest {
         givenGrammar("r0: r1 | r2", "r1: 'AB'", "r2: 'AC'").whenInput("A").thenExpect("B", "C");
     }
 
+    @Test
+    public void suggest_TokenMatchButNoParserRuleMatch_shouldNotSuggest() {
+        givenGrammar("r0: 'A' 'B'").whenInput("B").thenExpect();
+    }
+
+   @Test
+    public void suggest_withSecondRuleMatching_shouldNotSuggest() {
+        givenGrammar("r0: r1 | r2", "r1: 'AB'", "r2: 'CD' 'EF'").whenInput("CD").thenExpect("EF");
+    }
+
+    @Test
+    public void suggest_withSecondRuleMatchingAndNoNextToken_shouldNotSuggest() {
+        givenGrammar("r0: r1 | r2", "r1: 'AB'", "r2: 'CD'").whenInput("CD").thenExpect();
+    }
+
     // @Test
     // public void suggest_withMultipleParseOptions_shouldSuggestAll() {
     // // Currently failing due to weird AST created by antlr4. Parser state 11
@@ -135,12 +150,12 @@ public class AutoCompleteTest {
     // 'C')").whenInput("A").thenExpect("B", "BC");
     // }
 
-    private AutoCompleteTest givenGrammar(String... grammarLines) {
+    private AutoSuggesterTest givenGrammar(String... grammarLines) {
         this.lexerAndParserFactory = loadGrammar(grammarLines);
         return this;
     }
 
-    private AutoCompleteTest whenInput(String input) {
+    private AutoSuggesterTest whenInput(String input) {
         this.suggestedCompletions = new AutoSuggester(this.lexerAndParserFactory, input).suggestCompletions();
         return this;
     }

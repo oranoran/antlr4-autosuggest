@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.antlr.v4.runtime.ANTLRErrorListener;
 import org.antlr.v4.runtime.BaseErrorListener;
@@ -51,57 +52,56 @@ public class AutoSuggester {
     }
 
     public Collection<String> suggestCompletions() {
-        createTokenList();
-        Parser parser = lexerAndParserFactory.createParser(new CommonTokenStream(createLexer()));
-        logger.debug("Parser rule names: " + StringUtils.join(parser.getRuleNames(), ", "));
-        parserAtn = parser.getATN();
-        autoSuggestNextToken();
+        tokenizeInput();
+        createParserAtn();
+        runParserAtnAndCollectSuggestions();
         return collectedSuggestions;
     }
 
-    private void createTokenList() {
+    private void tokenizeInput() {
         Lexer lexer = createLexerWithUntokenizedTextDetection();
-        inputTokens = lexer.getAllTokens();
+        this.inputTokens = lexer.getAllTokens(); // side effect: also fills this.untokenizedText
         logger.debug("TOKENS FOUND IN FIRST PASS:");
         for (Token token : inputTokens) {
             logger.debug(token.toString());
         }
     }
 
-    private Lexer createLexer() {
-        return createLexer(this.input);
+    private void createParserAtn() {
+        Parser parser = lexerAndParserFactory.createParser(new CommonTokenStream(createLexer()));
+        logger.debug("Parser rule names: " + StringUtils.join(parser.getRuleNames(), ", "));
+        parserAtn = parser.getATN();
     }
 
-    private Lexer createLexer(String lexerInput) {
-        return this.lexerAndParserFactory.createLexer(toCharStream(lexerInput));
-    }
-
-    private void autoSuggestNextToken() {
+    private void runParserAtnAndCollectSuggestions() {
         ATNState initialState = parserAtn.states.get(0);
         logger.debug("Parser initial state: " + initialState);
         parseAndCollectTokenSuggestions(initialState, 0);
     }
 
-    private void parseAndCollectTokenSuggestions(ATNState state, int tokenListIndex) {
+    /**
+     * Recursive through the parser ATN to process all tokens. When successful (out of tokens) - collect completion
+     * suggestions.
+     */
+    private void parseAndCollectTokenSuggestions(ATNState parserState, int tokenListIndex) {
         indent = indent + "  ";
         try {
-            logger.debug(indent + "State: " + state);
-            logger.debug(
-                    indent + "State type: " + state.getClass().getSimpleName() + "(" + state.getStateType() + ")");
-            logger.debug(indent + "State transitions: " + transitionsStr(state));
+            logger.debug(indent + "State: " + parserState + " (type: " + parserState.getClass().getSimpleName() + ")");
+            logger.debug(indent + "State available transitions: " + transitionsStr(parserState));
 
-            for (Transition trans : state.getTransitions()) {
-                if (!haveMoreTokens(tokenListIndex)) {
-                    suggestTokensForState(state);
-                } else if (trans.isEpsilon()) {
+            if (!haveMoreTokens(tokenListIndex)) { // stop condition for recursion
+                suggestNextTokensForParserState(parserState);
+                return;
+            }
+            for (Transition trans : parserState.getTransitions()) {
+                if (trans.isEpsilon()) {
                     handleEpsilonTransition(trans, tokenListIndex);
                 } else if (trans instanceof AtomTransition) {
                     handleAtomicTransition((AtomTransition) trans, tokenListIndex);
-                    // } else if (trans instanceof SetTransition) {
-                    // handleSetTransition((SetTransition) trans,
-                    // tokenListIndex);
                 } else {
-                    throw new IllegalArgumentException("Unsupported (first pass): " + transitionStr(trans));
+                    // If we ever get SetTransition - should recurse on each of its label.toList() - but could not
+                    // simulate this
+                    throw new IllegalArgumentException("Unsupported parser transition: " + toString(trans));
                 }
             }
         } finally {
@@ -110,47 +110,27 @@ public class AutoSuggester {
     }
 
     private boolean haveMoreTokens(int tokenListIndex) {
-        if (tokenListIndex >= inputTokens.size())
-            return false;
-        if (inputTokens.get(tokenListIndex).getType() < 0)
-            return false;
-        return true;
+        return tokenListIndex < inputTokens.size();
     }
 
     private void handleEpsilonTransition(Transition trans, int tokenListIndex) {
+        // Epsilon transitions don't consume a token, so don't move the index
         parseAndCollectTokenSuggestions(trans.target, tokenListIndex);
     }
 
     private void handleAtomicTransition(AtomTransition trans, int tokenListIndex) {
-        logger.debug(indent + "Token: " + inputTokens.get(tokenListIndex));
-        boolean matches = trans.label == inputTokens.get(tokenListIndex).getType();
-        if (matches) {
-            logger.debug(indent + "Following transition: " + transitionStr(trans));
+        Token nextToken = inputTokens.get(tokenListIndex);
+        int nextTokenType = inputTokens.get(tokenListIndex).getType();
+        boolean nextTokenMatchesTransition = (trans.label == nextTokenType);
+        if (nextTokenMatchesTransition) {
+            logger.debug(indent + "Token " + nextToken + " following transition: " + toString(trans));
             parseAndCollectTokenSuggestions(trans.target, tokenListIndex + 1);
         } else {
-            logger.debug(indent + "NOT following transition: " + transitionStr(trans));
+            logger.debug(indent + "Token " + nextToken + " NOT following transition: " + toString(trans));
         }
     }
 
-    // private void handleSetTransition(SetTransition trans, int tokenListIndex)
-    // {
-    // logger.debug(indent + "Token: " + tokenList.get(tokenListIndex));
-    // boolean matchesAny = false;
-    // for(int sym : trans.label().toList()) {
-    // matchesAny = matchesAny || (sym ==
-    // tokenList.get(tokenListIndex).getType());
-    // }
-    // if (matchesAny) {
-    // logger.debug(indent + "Following transition: " +
-    // transitionStr(trans));
-    // parseAndCollectTokenSuggestions(trans.target, tokenListIndex + 1);
-    // } else {
-    // logger.debug(indent + "NOT following transition: " +
-    // transitionStr(trans));
-    // }
-    // }
-
-    private void suggestTokensForState(ATNState parserState) {
+    private void suggestNextTokensForParserState(ATNState parserState) {
         TokenSuggester tokenSuggester = new TokenSuggester(createLexer());
         Collection<String> suggestions = tokenSuggester.suggest(parserState, this.untokenizedText);
         parseSuggestionsAndAddValidOnes(parserState, suggestions);
@@ -159,11 +139,11 @@ public class AutoSuggester {
 
     private void parseSuggestionsAndAddValidOnes(ATNState parserState, Collection<String> suggestions) {
         for (String suggestion : suggestions) {
-            Token newToken = getAddedToken(suggestion);
-            if (isParseableWithAddedToken(parserState, newToken)) {
+            Token addedToken = getAddedToken(suggestion);
+            if (isParseableWithAddedToken(parserState, addedToken)) {
                 collectedSuggestions.add(suggestion);
             } else {
-                logger.debug("NOT SUGGESTING: " + suggestion);
+                logger.debug("DROPPING non-parseable suggestion: " + suggestion);
             }
         }
     }
@@ -174,7 +154,7 @@ public class AutoSuggester {
         completedTextLexer.removeErrorListeners();
         List<? extends Token> completedTextTokens = completedTextLexer.getAllTokens();
         if (completedTextTokens.size() <= inputTokens.size()) {
-            return null; // Completion didn't yield a whole token, e.g just a fragment
+            return null; // Completion didn't yield whole token, could be just a token fragment
         }
         logger.debug("TOKENS IN COMPLETED TEXT: " + completedTextTokens);
         Token newToken = completedTextTokens.get(completedTextTokens.size() - 1);
@@ -186,37 +166,38 @@ public class AutoSuggester {
             return false;
         }
         for (Transition parserTransition : parserState.getTransitions()) {
-            if (parserTransition.isEpsilon()) {
+            if (parserTransition.isEpsilon()) { // Recurse through any epsilon transitions
                 if (isParseableWithAddedToken(parserTransition.target, newToken)) {
                     return true;
                 }
             } else if (parserTransition instanceof AtomTransition) {
                 AtomTransition parserAtomTransition = (AtomTransition) parserTransition;
-                if (parserAtomTransition.label == newToken.getType()) {
+                int transitionTokenType = parserAtomTransition.label;
+                if (transitionTokenType == newToken.getType()) {
                     return true;
                 }
             } else if (parserTransition instanceof SetTransition) {
                 SetTransition parserSetTransition = (SetTransition) parserTransition;
-                for (int sym : parserSetTransition.label().toList()) {
-                    if (sym == newToken.getType()) {
+                for (int transitionTokenType : parserSetTransition.label().toList()) {
+                    if (transitionTokenType == newToken.getType()) {
                         return true;
                     }
                 }
             } else {
-                throw new IllegalArgumentException("Unsupported:" + transitionStr(parserTransition));
+                throw new AssertionError("Unexpected: " + toString(parserTransition));
             }
         }
         return false;
     }
 
-    private String transitionStr(Transition t) {
+    private String toString(Transition t) {
         return t.getClass().getSimpleName() + "->" + t.target;
     }
 
     private String transitionsStr(ATNState state) {
-        Function<? super Transition, ? extends Object> mapper = (t) -> transitionStr(t);
-        return StringUtils.join(Arrays.asList(state.getTransitions()).stream().map(mapper).collect(Collectors.toList()),
-                ",");
+        Stream<Transition> transitionsStream = Arrays.asList(state.getTransitions()).stream();
+        List<String> transitionStrings = transitionsStream.map(this::toString).collect(Collectors.toList());
+        return StringUtils.join(transitionStrings, ", ");
     }
 
     private static CharStream toCharStream(String text) {
@@ -224,22 +205,30 @@ public class AutoSuggester {
         try {
             inputStream = CharStreams.fromReader(new StringReader(text));
         } catch (IOException e) {
-            throw new AssertionError("Must be a bug", e);
+            throw new AssertionError("Unexpected while reading input string", e);
         }
         return inputStream;
     }
 
     private Lexer createLexerWithUntokenizedTextDetection() {
-        Lexer lexer = this.lexerAndParserFactory.createLexer(toCharStream(this.input));
+        Lexer lexer = createLexer();
         lexer.removeErrorListeners();
         ANTLRErrorListener newErrorListener = new BaseErrorListener() {
             @Override
             public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
                     int charPositionInLine, String msg, RecognitionException e) throws ParseCancellationException {
-                untokenizedText = input.substring(charPositionInLine);
+                untokenizedText = input.substring(charPositionInLine); // intended side effect
             }
         };
         lexer.addErrorListener(newErrorListener);
         return lexer;
+    }
+    
+    private Lexer createLexer() {
+        return createLexer(this.input);
+    }
+
+    private Lexer createLexer(String lexerInput) {
+        return this.lexerAndParserFactory.createLexer(toCharStream(lexerInput));
     }
 }

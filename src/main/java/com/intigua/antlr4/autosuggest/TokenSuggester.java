@@ -29,7 +29,9 @@ public class TokenSuggester {
 
     public Collection<String> suggest(ATNState parserState, String remainingText) {
         ATNState lexerState = toLexerState(parserState);
-        if (lexerState.getTransitions().length == 0) {
+        if (lexerState==null) {
+            return suggestions;
+        } else if (lexerState.getTransitions().length == 0) {
             for (Transition transiton : parserState.getTransitions()) {
                 if (transiton instanceof AtomTransition) {
                     lexerState = toLexerState(((AtomTransition) transiton).target);
@@ -44,6 +46,10 @@ public class TokenSuggester {
 
     private ATNState toLexerState(ATNState parserState) {
         int stateIndexInLexerAtn = lexer.getATN().states.indexOf(parserState);
+        if(stateIndexInLexerAtn<0) {
+            logger.debug("No lexer state matches parser state " + parserState + ", aborting.");
+            return null;
+        }
         ATNState lexerState = lexer.getATN().states.get(stateIndexInLexerAtn);
         return lexerState;
     }
