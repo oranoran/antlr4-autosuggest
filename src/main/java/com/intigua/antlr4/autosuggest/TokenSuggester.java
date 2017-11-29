@@ -10,16 +10,20 @@ import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.atn.ATNState;
 import org.antlr.v4.runtime.atn.AtomTransition;
 import org.antlr.v4.runtime.atn.Transition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Given an ATN state and the lexer ATN, suggests auto-completion texts.
  */
-public class TokenCompleter {
+public class TokenSuggester {
+    private static final Logger logger = LoggerFactory.getLogger(TokenSuggester.class);
+    
     private final Lexer lexer;
     private final Set<String> suggestions = new TreeSet<String>();
     private final List<Integer> visitedLexerStates = new ArrayList<>();
 
-    public TokenCompleter(Lexer lexer) {
+    public TokenSuggester(Lexer lexer) {
         this.lexer = lexer;
     }
 
@@ -53,7 +57,6 @@ public class TokenCompleter {
             Transition[] transitions = state.getTransitions();
             if (transitions.length == 0 && completionSoFar.length() > 0) {
                 suggestions.add(completionSoFar);
-                System.out.println("XXXXXX: " + completionSoFar);
                 return;
             }
             for (Transition trans : transitions) {

@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.antlr.v4.runtime.ANTLRErrorListener;
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -26,22 +27,25 @@ import org.antlr.v4.runtime.atn.SetTransition;
 import org.antlr.v4.runtime.atn.Transition;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Suggests completions for given text, using a given ANTLR4 grammar.
  */
-public class AutoComplete {
+public class AutoSuggester {
+    private static final Logger logger = LoggerFactory.getLogger(AutoSuggester.class);
 
     private final LexerAndParserFactory lexerAndParserFactory;
     private final String input;
     private final Set<String> collectedSuggestions = new HashSet<String>();
 
+    private List<? extends Token> inputTokens;
+    private String untokenizedText = "";
     private ATN parserAtn;
     private String indent = "";
-    private List<? extends Token> tokenList;
-    private String untokenizedText = "";
 
-    public AutoComplete(LexerAndParserFactory lexerAndParserFactory, String input) {
+    public AutoSuggester(LexerAndParserFactory lexerAndParserFactory, String input) {
         this.lexerAndParserFactory = lexerAndParserFactory;
         this.input = input;
     }
@@ -49,21 +53,19 @@ public class AutoComplete {
     public Collection<String> suggestCompletions() {
         createTokenList();
         Parser parser = lexerAndParserFactory.createParser(new CommonTokenStream(createLexer()));
-        System.out.println("Parser rule names: " + StringUtils.join(parser.getRuleNames(), ", "));
+        logger.debug("Parser rule names: " + StringUtils.join(parser.getRuleNames(), ", "));
         parserAtn = parser.getATN();
         autoSuggestNextToken();
         return collectedSuggestions;
     }
 
-    private CuttingErrorListener createTokenList() {
-        Lexer lexer = createLexer();
-        CuttingErrorListener errorListener = setErrorHandler(lexer, this.input);
-        tokenList = toTokenListWithEndingCaretToken(lexer);
-        System.out.println("TOKENS FOUND IN FIRST PASS:");
-        for (Token token : tokenList) {
-            System.out.println(token);
+    private void createTokenList() {
+        Lexer lexer = createLexerWithUntokenizedTextDetection();
+        inputTokens = lexer.getAllTokens();
+        logger.debug("TOKENS FOUND IN FIRST PASS:");
+        for (Token token : inputTokens) {
+            logger.debug(token.toString());
         }
-        return errorListener;
     }
 
     private Lexer createLexer() {
@@ -76,17 +78,17 @@ public class AutoComplete {
 
     private void autoSuggestNextToken() {
         ATNState initialState = parserAtn.states.get(0);
-        System.out.println("Parser initial state: " + initialState);
+        logger.debug("Parser initial state: " + initialState);
         parseAndCollectTokenSuggestions(initialState, 0);
     }
 
     private void parseAndCollectTokenSuggestions(ATNState state, int tokenListIndex) {
         indent = indent + "  ";
         try {
-            System.out.println(indent + "State: " + state);
-            System.out.println(
+            logger.debug(indent + "State: " + state);
+            logger.debug(
                     indent + "State type: " + state.getClass().getSimpleName() + "(" + state.getStateType() + ")");
-            System.out.println(indent + "State transitions: " + transitionsStr(state));
+            logger.debug(indent + "State transitions: " + transitionsStr(state));
 
             for (Transition trans : state.getTransitions()) {
                 if (!haveMoreTokens(tokenListIndex)) {
@@ -108,9 +110,9 @@ public class AutoComplete {
     }
 
     private boolean haveMoreTokens(int tokenListIndex) {
-        if (tokenListIndex >= tokenList.size())
+        if (tokenListIndex >= inputTokens.size())
             return false;
-        if (tokenList.get(tokenListIndex).getType() < 0)
+        if (inputTokens.get(tokenListIndex).getType() < 0)
             return false;
         return true;
     }
@@ -120,72 +122,72 @@ public class AutoComplete {
     }
 
     private void handleAtomicTransition(AtomTransition trans, int tokenListIndex) {
-        System.out.println(indent + "Token: " + tokenList.get(tokenListIndex));
-        boolean matches = trans.label == tokenList.get(tokenListIndex).getType();
+        logger.debug(indent + "Token: " + inputTokens.get(tokenListIndex));
+        boolean matches = trans.label == inputTokens.get(tokenListIndex).getType();
         if (matches) {
-            System.out.println(indent + "Following transition: " + transitionStr(trans));
+            logger.debug(indent + "Following transition: " + transitionStr(trans));
             parseAndCollectTokenSuggestions(trans.target, tokenListIndex + 1);
         } else {
-            System.out.println(indent + "NOT following transition: " + transitionStr(trans));
+            logger.debug(indent + "NOT following transition: " + transitionStr(trans));
         }
     }
 
     // private void handleSetTransition(SetTransition trans, int tokenListIndex)
     // {
-    // System.out.println(indent + "Token: " + tokenList.get(tokenListIndex));
+    // logger.debug(indent + "Token: " + tokenList.get(tokenListIndex));
     // boolean matchesAny = false;
     // for(int sym : trans.label().toList()) {
     // matchesAny = matchesAny || (sym ==
     // tokenList.get(tokenListIndex).getType());
     // }
     // if (matchesAny) {
-    // System.out.println(indent + "Following transition: " +
+    // logger.debug(indent + "Following transition: " +
     // transitionStr(trans));
     // parseAndCollectTokenSuggestions(trans.target, tokenListIndex + 1);
     // } else {
-    // System.out.println(indent + "NOT following transition: " +
+    // logger.debug(indent + "NOT following transition: " +
     // transitionStr(trans));
     // }
     // }
 
     private void suggestTokensForState(ATNState parserState) {
-        TokenCompleter tokenCompleter = new TokenCompleter(createLexer());
-        Collection<String> tokenCompletions = tokenCompleter.suggest(parserState, this.untokenizedText);
-        parseSuggestedCompletionsAndAddValidOnes(parserState, tokenCompletions);
-        System.out.println(indent + "WILL SUGGEST TOKENS FOR STATE: " + parserState);
+        TokenSuggester tokenSuggester = new TokenSuggester(createLexer());
+        Collection<String> suggestions = tokenSuggester.suggest(parserState, this.untokenizedText);
+        parseSuggestionsAndAddValidOnes(parserState, suggestions);
+        logger.debug(indent + "WILL SUGGEST TOKENS FOR STATE: " + parserState);
     }
 
-    private void parseSuggestedCompletionsAndAddValidOnes(ATNState parserState, Collection<String> tokenCompletions) {
-        for (String completion : tokenCompletions) {
-            Token newToken = getAddedToken(completion);
-            if (isParseableCompletionToken(completion, parserState, newToken)) {
-                collectedSuggestions.add(completion);
+    private void parseSuggestionsAndAddValidOnes(ATNState parserState, Collection<String> suggestions) {
+        for (String suggestion : suggestions) {
+            Token newToken = getAddedToken(suggestion);
+            if (isParseableWithAddedToken(parserState, newToken)) {
+                collectedSuggestions.add(suggestion);
             } else {
-                System.out.println("NOT SUGGESTING: " + completion);
+                logger.debug("NOT SUGGESTING: " + suggestion);
             }
         }
     }
 
-    private Token getAddedToken(String completion) {
-        Lexer testLexer = this.createLexer(this.input + completion);
-        testLexer.removeErrorListeners();
-        List<? extends Token> lexerTokens = testLexer.getAllTokens();
-        if (lexerTokens.size() <= tokenList.size()) {
-            return null; // Completion didn't yield a whole token, e.g just a
-                         // fragment
+    private Token getAddedToken(String suggestedCompletion) {
+        String completedText = this.input + suggestedCompletion;
+        Lexer completedTextLexer = this.createLexer(completedText);
+        completedTextLexer.removeErrorListeners();
+        List<? extends Token> completedTextTokens = completedTextLexer.getAllTokens();
+        if (completedTextTokens.size() <= inputTokens.size()) {
+            return null; // Completion didn't yield a whole token, e.g just a fragment
         }
-        System.out.println("TOKENS IN VALIDATION: " + lexerTokens);
-        Token newToken = lexerTokens.get(lexerTokens.size() - 1);
+        logger.debug("TOKENS IN COMPLETED TEXT: " + completedTextTokens);
+        Token newToken = completedTextTokens.get(completedTextTokens.size() - 1);
         return newToken;
     }
 
-    private boolean isParseableCompletionToken(String completion, ATNState parserState, Token newToken) {
+    private boolean isParseableWithAddedToken(ATNState parserState, Token newToken) {
         if (newToken == null) {
             return false;
         }
         for (Transition parserTransition : parserState.getTransitions()) {
             if (parserTransition.isEpsilon()) {
-                if (isParseableCompletionToken(completion, parserTransition.target, newToken)) {
+                if (isParseableWithAddedToken(parserTransition.target, newToken)) {
                     return true;
                 }
             } else if (parserTransition instanceof AtomTransition) {
@@ -217,17 +219,6 @@ public class AutoComplete {
                 ",");
     }
 
-    private CuttingErrorListener setErrorHandler(Recognizer<?, ?> recognizer, String text) {
-        recognizer.removeErrorListeners();
-        CuttingErrorListener newErrorListener = new CuttingErrorListener(text);
-        recognizer.addErrorListener(newErrorListener);
-        return newErrorListener;
-    }
-
-    private List<? extends Token> toTokenListWithEndingCaretToken(Lexer lexer) {
-        return lexer.getAllTokens();
-    }
-
     private static CharStream toCharStream(String text) {
         CharStream inputStream;
         try {
@@ -238,19 +229,17 @@ public class AutoComplete {
         return inputStream;
     }
 
-    private final class CuttingErrorListener extends BaseErrorListener {
-
-        private final String inputText;
-
-        CuttingErrorListener(String inputText) {
-            this.inputText = inputText;
-        }
-
-        @Override
-        public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine,
-                String msg, RecognitionException e) throws ParseCancellationException {
-            untokenizedText = inputText.substring(charPositionInLine);
-        }
+    private Lexer createLexerWithUntokenizedTextDetection() {
+        Lexer lexer = this.lexerAndParserFactory.createLexer(toCharStream(this.input));
+        lexer.removeErrorListeners();
+        ANTLRErrorListener newErrorListener = new BaseErrorListener() {
+            @Override
+            public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
+                    int charPositionInLine, String msg, RecognitionException e) throws ParseCancellationException {
+                untokenizedText = input.substring(charPositionInLine);
+            }
+        };
+        lexer.addErrorListener(newErrorListener);
+        return lexer;
     }
-
 }

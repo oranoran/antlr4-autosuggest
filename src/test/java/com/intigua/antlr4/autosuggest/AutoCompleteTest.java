@@ -14,15 +14,23 @@ import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.tool.Grammar;
 import org.antlr.v4.tool.LexerGrammar;
 import org.apache.commons.lang3.StringUtils;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.intigua.antlr4.autosuggest.AutoComplete;
+import com.intigua.antlr4.autosuggest.AutoSuggester;
 import com.intigua.antlr4.autosuggest.LexerAndParserFactory;
 
 public class AutoCompleteTest {
 
     private LexerAndParserFactory lexerAndParserFactory;
     private Collection<String> suggestedCompletions;
+
+    @BeforeClass
+    public static void initLogging() {
+        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "DEBUG");
+        System.setProperty(org.slf4j.impl.SimpleLogger.SHOW_LOG_NAME_KEY, "false");
+        System.setProperty(org.slf4j.impl.SimpleLogger.SHOW_THREAD_NAME_KEY, "false");
+    }
 
     @Test
     public void suggest_withEmpty_shouldSuggestFirstToken() {
@@ -133,7 +141,7 @@ public class AutoCompleteTest {
     }
 
     private AutoCompleteTest whenInput(String input) {
-        this.suggestedCompletions = new AutoComplete(this.lexerAndParserFactory, input).suggestCompletions();
+        this.suggestedCompletions = new AutoSuggester(this.lexerAndParserFactory, input).suggestCompletions();
         return this;
     }
 
