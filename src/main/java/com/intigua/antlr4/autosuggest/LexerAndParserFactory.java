@@ -7,7 +7,7 @@ import org.antlr.v4.runtime.TokenStream;
 
 public interface LexerAndParserFactory {
 
-	Lexer createLexer(CharStream input);
+    Lexer createLexer(CharStream input);
 
-	Parser createParser(TokenStream tokenStream);
+    Parser createParser(TokenStream tokenStream);
 }

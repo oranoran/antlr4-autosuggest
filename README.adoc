@@ -1,0 +1,47 @@
+= antlr4-autosuggest - a Java autosuggest engine for ANTLR4 grammars
+Oran Epelbaum
+:groupid: com.intigua
+:version: 0.0.1-SNAPSHOT
+:source-highlighter: pygments
+
+To get started, have a look at the unit tests.
+
+image:https://circleci.com/gh/oranoran/antlr4-autosuggest.svg?style=shield&circle-token=:circle-token
+
+== Getting antlr-autosuggest
+
+For now, you need to download and build the library from source code.
+We intend to publish into Maven Central soon.
+
+== Examples
+
+A - Generating suggestions for a generated grammar
+
+```java
+
+    LexerAndParserFactory lexerAndParserFactory = new LexerAndParserFactory() {
+
+        @Override
+        public Parser createParser(TokenStream tokenStream) {
+            return new myGeneratedParser(tokenStream);
+        }
+
+        @Override
+        public Lexer createLexer(CharStream input) {
+            return new myGeneratedLexer(input);
+        }
+    };
+    new AutoComplete(lexerAndParserFactory, "CompleteThisTex").suggestCompletions();
+```
+
+== Building antlr-autosuggest
+. Clone the antlr-autosuggest repository.
+. Install Java 8 and Maven if not already available
+. Run the command `mvn install`.
+
+== Credits
+Written by Oran Epelbaum at Intigua.
+When starting to write this, studied the following blog posts (though much has changed since):
+
+- https://blog.rapid7.com/2015/06/29/how-to-implement-antlr4-autocomplete/[RAPID7]: How to Implement ANTLR4 Autocomplete
+- https://tomassetti.me/autocompletion-editor-antlr/[TOMASETTI]: Building autocompletion for an editor based on ANTLR by Federico Tomassetti
