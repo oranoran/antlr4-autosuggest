@@ -49,5 +49,8 @@ jobs:
       - store_test_results:
           path: ~/junit
       - store_artifacts:
-          path: ~/junit         
+          path: ~/junit
+
+      # Collect coverage metrics
+      - run: bash <(curl -s https://codecov.io/bash)
 
