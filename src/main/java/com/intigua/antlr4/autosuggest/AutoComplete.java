@@ -39,7 +39,7 @@ public class AutoComplete {
     private ATN parserAtn;
     private String indent = "";
     private List<? extends Token> tokenList;
-    String untokenizedText = "";
+    private String untokenizedText = "";
 
     public AutoComplete(LexerAndParserFactory lexerAndParserFactory, String input) {
         this.lexerAndParserFactory = lexerAndParserFactory;
@@ -233,7 +233,7 @@ public class AutoComplete {
         try {
             inputStream = CharStreams.fromReader(new StringReader(text));
         } catch (IOException e) {
-            throw new RuntimeException("Must be a bug", e);
+            throw new AssertionError("Must be a bug", e);
         }
         return inputStream;
     }

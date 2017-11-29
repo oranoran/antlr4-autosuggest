@@ -6,7 +6,7 @@ Oran Epelbaum
 
 To get started, have a look at the unit tests.
 
-image:https://circleci.com/gh/oranoran/antlr4-autosuggest.svg?style=shield&circle-token=:circle-token[link="https://circleci.com/gh/oranoran/antlr4-autosuggest"] image:https://codecov.io/gh/oranoran/antlr4-autosuggest/branch/master/graph/badge.svg[link="https://codecov.io/gh/oranoran/antlr4-autosuggest"]
+image:https://circleci.com/gh/oranoran/antlr4-autosuggest.svg?style=shield&circle-token=:circle-token[link="https://circleci.com/gh/oranoran/antlr4-autosuggest"] image:https://codecov.io/gh/oranoran/antlr4-autosuggest/branch/master/graph/badge.svg[link="https://codecov.io/gh/oranoran/antlr4-autosuggest"] image:https://api.codacy.com/project/badge/Grade/496e60ce37e64674a32551590a8135e9[link="https://www.codacy.com/app/oranoran/antlr4-autosuggest?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=oranoran/antlr4-autosuggest&amp;utm_campaign=Badge_Grade"]
 
 == Getting antlr-autosuggest
 
