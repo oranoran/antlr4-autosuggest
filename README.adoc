@@ -6,7 +6,7 @@ Oran Epelbaum
 
 To get started, have a look at the unit tests.
 
-image:https://circleci.com/gh/oranoran/antlr4-autosuggest.svg?style=shield&circle-token=:circle-token[link="https://circleci.com/gh/oranoran/antlr4-autosuggest"]
+image:https://circleci.com/gh/oranoran/antlr4-autosuggest.svg?style=shield&circle-token=:circle-token[link="https://circleci.com/gh/oranoran/antlr4-autosuggest"] image:https://codecov.io/gh/oranoran/antlr4-autosuggest/branch/master/graph/badge.svg[link="https://codecov.io/gh/oranoran/antlr4-autosuggest"]
 
 == Getting antlr-autosuggest
 
