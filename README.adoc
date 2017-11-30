@@ -18,20 +18,8 @@ We intend to publish into Maven Central soon.
 A - Generating suggestions for a generated grammar
 
 ```java
-
-    LexerAndParserFactory lexerAndParserFactory = new LexerAndParserFactory() {
-
-        @Override
-        public Parser createParser(TokenStream tokenStream) {
-            return new myGeneratedParser(tokenStream);
-        }
-
-        @Override
-        public Lexer createLexer(CharStream input) {
-            return new myGeneratedLexer(input);
-        }
-    };
-    new AutoComplete(lexerAndParserFactory, "CompleteThisTex").suggestCompletions();
+LexerAndParserFactory lexerAndParserfactory = new ReflectionLexerAndParserFactory(MyGeneratedLexer.class, MyGeneratedParser.class);
+new AutoComplete(lexerAndParserFactory, "CompleteThisTex").suggestCompletions();
 ```
 
 == How It Works
@@ -50,8 +38,8 @@ Ok, now back to autosuggest. So to be able to suggest completions to a given tex
 . Run the text through a lexer, and see if the entire text can be lexed successfully. For example, if we get an input like ```Please complete this tex```, the English lexer would fail at ```tex```, because that's just part of a word. So the autosuggest engine needs to kick in after the tokens ```Please```, ```complete``` and ```this```. The ```tex``` part if not important right now, we'll get back to it later. By the way, if the lexer can parse the whole text, that's also fine. This means the autosuggest engine should kick in after the very last token.
 . Now run the tokens from the previous step through the parser's internal state machine, known as the ATN. The ATN is really the heart of the ANTLR4 runtime. It's a simple state machine that describes, given a current state, what are the possible next tokens, and the next state to go to for each allowed token. + 
 For example, at the start of a sentence (let's call the start of a sentence "state 0"), the token ```Please``` is allowed. When ```Please``` is received, it transitions the ATN to a new state (let's call it "state 1"). In this state, the parser is now expecting a verb token like ```complete```. After receiving such a verb token, it will move again to a new state, where it will expect a noun again, such as ```text```, or maybe a pronoun such as ```this```. And so on. What we care about for the purpose of autosuggest, is the final parser state after consuming all the tokens from the last step. This will tell us what we're really interested in - which tokens can come next after the current text.
-. Now is the cool part: The lexer also has an ATN of its own, which it uses to read a stream of individual characters and turn them into tokens. The lexer ATN and the parser ATN have an overlap - meaning some states appear in both ATNs. Think of this as the states where one token ends and another one starts - both the parser and the lexer care about token beginning and end, though for different purposes. The parser uses these states to look at token relationships, while the lexer uses them to identify token boundaries. Anyway, the autosuggest engine now runs through the lexer's ATN, starting at the last parser state, to figure out what tokens can come next. These are going to be the auto-suggest results.
-. Remember the redundant "tex" from above? Well, it's not enough for the auto-suggest results to be valid tokens for their place, they also need to match any text that we dropped at step 1. So maybe I have potential completion tokens like ```assignment```, ```work```, ```form``` and ```text```, but only ```text``` matches the ```tex``` partial token, and so all the other options are dropped. In fact, these irrelevent tokens are already dropped during the lexer ATN processing.
+. Now comes the magic ingredient: The lexer also has an ATN of its own, which it uses to read a stream of individual characters and turn them into tokens. The lexer ATN and the parser ATN have an overlap - meaning some states appear in both ATNs. Think of this as the states where one token ends and another one starts - both the parser and the lexer care about token beginning and end, though for different purposes. The parser uses these states to look at token relationships, while the lexer uses them to identify token boundaries. Anyway, the autosuggest engine now runs through the lexer's ATN, starting at the last parser state, to figure out what tokens can come next. These are going to be the auto-suggest results.
+. Remember the redundant ```tex``` from above? Well, it's not enough for the auto-suggest results to be valid tokens for their place, they also need to match any text that we dropped at step 1. So maybe I have potential completion tokens like ```assignment```, ```work```, ```form``` and ```text```, but only ```text``` matches the ```tex``` partial token, and so all the other options are dropped. In fact, these irrelevent tokens are already dropped during the lexer ATN processing.
 . The final step is to take a look at the entire suggested sentence. The lexer is kind of dumb, and it's possible that it will suggest valid tokens that don't actually make sense in the sentence as a whole, i.e. the parser won't like them. For example, ```Please complete this textile``` is technically a valid completion, but doesn't make any sense in English. So we run the parser one last time on each of the suggested completions, and filter out those suggestions that make the parser fail.
 
 Maybe this sounds complex, but once you get the core concepts like parser, lexer and ATN, it all makes sense. Read the code to get the details picture.
