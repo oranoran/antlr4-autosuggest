@@ -16,9 +16,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Given an ATN state and the lexer ATN, suggests auto-completion texts.
  */
-public class TokenSuggester {
+class TokenSuggester {
     private static final Logger logger = LoggerFactory.getLogger(TokenSuggester.class);
-    
+
     private final Lexer lexer;
     private final Set<String> suggestions = new TreeSet<String>();
     private final List<Integer> visitedLexerStates = new ArrayList<>();
@@ -29,7 +29,7 @@ public class TokenSuggester {
 
     public Collection<String> suggest(ATNState parserState, String remainingText) {
         ATNState lexerState = toLexerState(parserState);
-        if (lexerState==null) {
+        if (lexerState == null) {
             return suggestions;
         } else if (lexerState.getTransitions().length == 0) {
             for (Transition transiton : parserState.getTransitions()) {
@@ -46,8 +46,8 @@ public class TokenSuggester {
 
     private ATNState toLexerState(ATNState parserState) {
         int stateIndexInLexerAtn = lexer.getATN().states.indexOf(parserState);
-        if(stateIndexInLexerAtn<0) {
-            logger.debug("No lexer state matches parser state " + parserState + ", aborting.");
+        if (stateIndexInLexerAtn < 0) {
+            logger.debug("No lexer state matches parser state " + parserState + ", not suggesting completions.");
             return null;
         }
         ATNState lexerState = lexer.getATN().states.get(stateIndexInLexerAtn);

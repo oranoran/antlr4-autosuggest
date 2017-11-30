@@ -7,7 +7,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -184,7 +183,7 @@ public class AutoSuggester {
                     }
                 }
             } else {
-                throw new AssertionError("Unexpected: " + toString(parserTransition));
+                throw new IllegalStateException("Unexpected: " + toString(parserTransition));
             }
         }
         return false;
@@ -205,7 +204,7 @@ public class AutoSuggester {
         try {
             inputStream = CharStreams.fromReader(new StringReader(text));
         } catch (IOException e) {
-            throw new AssertionError("Unexpected while reading input string", e);
+            throw new IllegalStateException("Unexpected while reading input string", e);
         }
         return inputStream;
     }
