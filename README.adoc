@@ -18,8 +18,9 @@ We intend to publish into Maven Central soon.
 A - Generating suggestions for a generated grammar
 
 ```java
-LexerAndParserFactory lexerAndParserfactory = new ReflectionLexerAndParserFactory(MyGeneratedLexer.class, MyGeneratedParser.class);
-new AutoComplete(lexerAndParserFactory, "CompleteThisTex").suggestCompletions();
+LexerAndParserFactory lexerAndParserfactory = new ReflectionLexerAndParserFactory(
+        MyGeneratedLexer.class, MyGeneratedParser.class);
+Collection<String> suggestions = new AutoComplete(lexerAndParserFactory, "CompleteThisTex").suggestCompletions();
 ```
 
 == How It Works
