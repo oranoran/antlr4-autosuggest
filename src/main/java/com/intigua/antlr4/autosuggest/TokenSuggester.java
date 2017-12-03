@@ -50,13 +50,13 @@ class TokenSuggester {
         return lexerState;
     }
 
-    private void suggest(String completionSoFar, ATNState state, String remainingText) {
-        if (visitedLexerStates.contains(state.stateNumber)) {
+    private void suggest(String completionSoFar, ATNState lexerState, String remainingText) {
+        if (visitedLexerStates.contains(lexerState.stateNumber)) {
             return; // avoid infinite loop and stack overflow
         }
-        visitedLexerStates.add(state.stateNumber);
+        visitedLexerStates.add(lexerState.stateNumber);
         try {
-            Transition[] transitions = state.getTransitions();
+            Transition[] transitions = lexerState.getTransitions();
             if (transitions.length == 0 && completionSoFar.length() > 0) {
                 suggestions.add(completionSoFar);
                 return;
