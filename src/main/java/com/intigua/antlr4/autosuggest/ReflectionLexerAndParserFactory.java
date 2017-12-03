@@ -20,12 +20,12 @@ public class ReflectionLexerAndParserFactory implements LexerAndParserFactory {
 
     @Override
     public Lexer createLexer(CharStream input) {
-        return create(Lexer.class, lexerCtr, input);
+        return create(lexerCtr, input);
     }
 
     @Override
     public Parser createParser(TokenStream tokenStream) {
-        return create(Parser.class, parserCtr, tokenStream);
+        return create(parserCtr, tokenStream);
     }
 
     private static <T> Constructor<? extends T> getConstructor(Class<? extends T> givenClass, Class<T> targetBaseClass,
@@ -38,7 +38,7 @@ public class ReflectionLexerAndParserFactory implements LexerAndParserFactory {
         }
     }
 
-    private <T> T create(Class<T> targetClass, Constructor<? extends T> contructor, Object arg) {
+    private <T> T create(Constructor<? extends T> contructor, Object arg) {
         try {
             return contructor.newInstance(arg);
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
