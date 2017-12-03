@@ -93,6 +93,11 @@ public class AutoSuggesterTest {
     }
 
     @Test
+    public void suggest_withTokenRangeMatchingPartial_shouldSuggestJustTheMatch() {
+        givenGrammar("rule: A", "A: [A-E] 'X'").whenInput("C").thenExpect("X");
+    }
+
+    @Test
     public void suggest_withTokenRangeInFragment_shouldNotSuggest() {
         givenGrammar("rule: A", "fragment A: [A-Z]").whenInput("").thenExpect();
     }
