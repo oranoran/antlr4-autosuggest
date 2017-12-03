@@ -14,7 +14,6 @@ import org.antlr.v4.runtime.ANTLRErrorListener;
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.RecognitionException;
@@ -60,16 +59,18 @@ public class AutoSuggester {
     private void tokenizeInput() {
         Lexer lexer = createLexerWithUntokenizedTextDetection();
         this.inputTokens = lexer.getAllTokens(); // side effect: also fills this.untokenizedText
-        logger.debug("TOKENS FOUND IN FIRST PASS:");
-        for (Token token : inputTokens) {
-            logger.debug(token.toString());
+        if (logger.isDebugEnabled()) {
+            logger.debug("TOKENS FOUND IN FIRST PASS:");
+            for (Token token : inputTokens) {
+                logger.debug(token.toString());
+            }
         }
     }
 
     private void createParserAtn() {
-        Parser parser = lexerAndParserFactory.createParser(new CommonTokenStream(createLexer()));
-        logger.debug("Parser rule names: " + StringUtils.join(parser.getRuleNames(), ", "));
-        parserAtn = parser.getATN();
+        Parser parserForAtnOnly = lexerAndParserFactory.createParser(null);
+        logger.debug("Parser rule names: " + StringUtils.join(parserForAtnOnly.getRuleNames(), ", "));
+        parserAtn = parserForAtnOnly.getATN();
     }
 
     private void runParserAtnAndCollectSuggestions() {
@@ -222,7 +223,7 @@ public class AutoSuggester {
         lexer.addErrorListener(newErrorListener);
         return lexer;
     }
-    
+
     private Lexer createLexer() {
         return createLexer(this.input);
     }
