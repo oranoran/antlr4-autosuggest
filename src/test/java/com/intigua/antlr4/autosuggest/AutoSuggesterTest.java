@@ -48,8 +48,18 @@ public class AutoSuggesterTest {
     }
 
     @Test
+    public void suggest_withHalfToken_shouldCompleteTheToken() {
+        givenGrammar("rule: 'AB' 'CD'").whenInput("A").thenExpect("B");
+    }
+
+    @Test
     public void suggest_withCompleteExpression_shouldNotSuggestAnything() {
         givenGrammar("rule: 'AB' 'CD'").whenInput("ABCD").thenExpect();
+    }
+
+    @Test
+    public void suggest_withWrongCompletion_shouldNotSuggest() {
+        givenGrammar("rule: 'AB' 'CD'").whenInput("ABD").thenExpect();
     }
 
     @Test
@@ -68,13 +78,18 @@ public class AutoSuggesterTest {
     }
 
     @Test
+    public void suggest_withOptionalParserCompletion_shouldNotSuggest() {
+        givenGrammar("rule: 'A' 'B'?").whenInput("A").thenExpect();
+    }
+
+    @Test
     public void suggest_withAlternativeParserRules_shouldSuggest() {
         givenGrammar("rule: a | b", "a: 'A'", "b: 'B'").whenInput("").thenExpect("A", "B");
     }
 
     @Test
-    public void suggest_withTokenRange_shouldNotSuggest() {
-        givenGrammar("rule: A", "A: [A-Z]").whenInput("").thenExpect();
+    public void suggest_withTokenRange_shouldSuggestEntireRange() {
+        givenGrammar("rule: A", "A: [A-E]").whenInput("").thenExpect("A", "B", "C", "D", "E");
     }
 
     @Test

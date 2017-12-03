@@ -9,6 +9,7 @@ import java.util.TreeSet;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.atn.ATNState;
 import org.antlr.v4.runtime.atn.AtomTransition;
+import org.antlr.v4.runtime.atn.SetTransition;
 import org.antlr.v4.runtime.atn.Transition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,13 +32,8 @@ class TokenSuggester {
         ATNState lexerState = toLexerState(parserState);
         if (lexerState == null) {
             return suggestions;
-        } else if (lexerState.getTransitions().length == 0) {
-            for (Transition transiton : parserState.getTransitions()) {
-                if (transiton instanceof AtomTransition) {
-                    lexerState = toLexerState(((AtomTransition) transiton).target);
-                    suggest("", lexerState, remainingText);
-                }
-            }
+        } else if (lexerState.getTransitions().length == 0) { // at end of token
+            suggestViaParserTransition(parserState, remainingText);
         } else {
             suggest("", lexerState, remainingText);
         }
@@ -66,19 +62,48 @@ class TokenSuggester {
                 return;
             }
             for (Transition trans : transitions) {
-                if (trans.isEpsilon()) {
-                    suggest(completionSoFar, trans.target, remainingText);
-                } else if (trans instanceof AtomTransition) {
-                    String transitionToken = getAddedTextFor((AtomTransition) trans);
-                    if (transitionToken.startsWith(remainingText)) {
-                        String newTransitionToken = chopOffCommonStart(transitionToken, remainingText);
-                        String newRemainingText = chopOffCommonStart(remainingText, transitionToken);
-                        suggest(completionSoFar + newTransitionToken, trans.target, newRemainingText);
-                    }
-                }
+                suggestViaLexerTransition(completionSoFar, remainingText, trans);
             }
         } finally {
             visitedLexerStates.remove(visitedLexerStates.size() - 1);
+        }
+    }
+
+    private void suggestViaLexerTransition(String completionSoFar, String remainingText, Transition trans) {
+        if (trans.isEpsilon()) {
+            suggest(completionSoFar, trans.target, remainingText);
+        } else if (trans instanceof AtomTransition) {
+            String transitionToken = getAddedTextFor((AtomTransition) trans);
+            if (transitionToken.startsWith(remainingText)) {
+                suggestViaNonEpsilonLexerTransition(completionSoFar, remainingText, transitionToken, trans.target);
+            }
+        } else if (trans instanceof SetTransition) {
+            List<Integer> symbols = ((SetTransition) trans).label().toList();
+            for (Integer symbol : symbols) {
+                String transitionToken = new String(Character.toChars(symbol));
+                if (transitionToken.startsWith(remainingText)) {
+                    suggestViaNonEpsilonLexerTransition(completionSoFar, remainingText, transitionToken, trans.target);
+                }
+            }
+        }
+    }
+
+    private void suggestViaNonEpsilonLexerTransition(String completionSoFar, String remainingText,
+            String transitionToken, ATNState targetState) {
+        String newTransitionToken = chopOffCommonStart(transitionToken, remainingText);
+        String newRemainingText = chopOffCommonStart(remainingText, transitionToken);
+        suggest(completionSoFar + newTransitionToken, targetState, newRemainingText);
+    }
+
+    private void suggestViaParserTransition(ATNState parserState, String remainingText) {
+        for (Transition transition : parserState.getTransitions()) {
+            if (transition.isEpsilon()) {
+                suggestViaParserTransition(transition.target, remainingText);
+            }
+            else if (transition instanceof AtomTransition) {
+                ATNState lexerState = toLexerState(((AtomTransition) transition).target);
+                suggest("", lexerState, remainingText);
+            }
         }
     }
 
