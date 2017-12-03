@@ -1,6 +1,6 @@
 package com.intigua.antlr4.autosuggest;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
 import org.antlr.v4.runtime.CharStream;
@@ -11,6 +11,30 @@ import org.antlr.v4.runtime.atn.ATN;
 import org.junit.Test;
 
 public class ReflectionLexerAndParserFactoryTest {
+
+    @Test
+    public void create_succeeds() {
+        LexerAndParserFactory factory = new ReflectionLexerAndParserFactory(TestGrammarLexer.class,
+                TestGrammarParser.class);
+        Lexer createdLexer = factory.createLexer(null);
+        Parser createdParser = factory.createParser(null);
+        assertThat(createdLexer, instanceOf(TestGrammarLexer.class));
+        assertThat(createdParser, instanceOf(TestGrammarParser.class));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void create_withLexerConstructorFailure_shouldFail() {
+        LexerAndParserFactory factory = new ReflectionLexerAndParserFactory(FailingLexer.class,
+                TestGrammarParser.class);
+        factory.createLexer(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void create_withParserMissingConstructorFailure_shouldFail() {
+        LexerAndParserFactory factory = new ReflectionLexerAndParserFactory(TestGrammarLexer.class,
+                FailingParser.class);
+        factory.createParser(null);
+    }
 
     static class TestGrammarLexer extends Lexer {
 
@@ -59,16 +83,18 @@ public class ReflectionLexerAndParserFactoryTest {
         public ATN getATN() {
             return null;
         }
-
     }
 
-    @Test
-    public void create_succeeds() {
-        LexerAndParserFactory factory = new ReflectionLexerAndParserFactory(TestGrammarLexer.class,
-                TestGrammarParser.class);
-        Lexer createdLexer = factory.createLexer(null);
-        Parser createdParser = factory.createParser(null);
-        assertThat(createdLexer, instanceOf(TestGrammarLexer.class));
-        assertThat(createdParser, instanceOf(TestGrammarParser.class));
-    }
+    static class FailingLexer extends TestGrammarLexer {
+        public FailingLexer(CharStream input) {
+            super(input);
+            throw new RuntimeException();
+        }
+    };
+
+    static class FailingParser extends TestGrammarParser {
+        public FailingParser() throws Exception {
+            super(null);
+        }
+    };
 }
