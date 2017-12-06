@@ -19,6 +19,7 @@ import tempfile
 import shutil
 import glob
 import time
+import subprocess
 
 JAVA_TEST_FILE = 'src/test/java/com/intigua/antlr4/autosuggest/AutoSuggesterTest.java'
 TESTS_OUT_FILENAME = 'generatedTestsFromJava.spec.js'
@@ -106,15 +107,15 @@ def process(line):
     }
 
 
-def generate_grammar(dir, grammar):
+def generate_grammar(output_dir, grammar):
     gname = to_name(grammar)
-    filename = os.path.join(dir, gname + ".g4")
+    filename = os.path.join(output_dir, gname + ".g4")
     if os.path.exists(filename):
         return
     full = "grammar %s;\n%s" % (gname, grammar)
     with open(filename, "w") as text_file:
         text_file.write("{0}".format(full))
-    os.system("antlr4 -Dlanguage=JavaScript " + filename)
+    subprocess.check_call(["antlr4", "-Dlanguage=JavaScript", filename])
 
 def collect_generated_code(tdir):
     if os.path.exists(GENERATED_JS_CODE_OUT_DIR):
