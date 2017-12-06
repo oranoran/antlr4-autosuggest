@@ -14,8 +14,8 @@ public class ReflectionLexerAndParserFactory implements LexerAndParserFactory {
     private final Constructor<? extends Parser> parserCtr;
 
     public ReflectionLexerAndParserFactory(Class<? extends Lexer> lexerClass, Class<? extends Parser> parserClass) {
-        lexerCtr = getConstructor(lexerClass, Lexer.class, CharStream.class);
-        parserCtr = getConstructor(parserClass, Parser.class, TokenStream.class);
+        lexerCtr = getConstructor(lexerClass, CharStream.class);
+        parserCtr = getConstructor(parserClass, TokenStream.class);
     }
 
     @Override
@@ -28,8 +28,7 @@ public class ReflectionLexerAndParserFactory implements LexerAndParserFactory {
         return create(parserCtr, tokenStream);
     }
 
-    private static <T> Constructor<? extends T> getConstructor(Class<? extends T> givenClass, Class<T> targetBaseClass,
-            Class<?> argClass) {
+    private static <T> Constructor<? extends T> getConstructor(Class<? extends T> givenClass, Class<?> argClass) {
         try {
             return givenClass.getConstructor(argClass);
         } catch (NoSuchMethodException | SecurityException e) {

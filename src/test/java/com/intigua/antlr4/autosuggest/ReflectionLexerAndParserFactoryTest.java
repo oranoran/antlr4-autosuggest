@@ -37,8 +37,10 @@ public class ReflectionLexerAndParserFactoryTest {
     }
 
     static class TestGrammarLexer extends Lexer {
+        public CharStream input;
 
         public TestGrammarLexer(CharStream input) {
+            this.input = input;
         }
 
         @Override
@@ -88,7 +90,7 @@ public class ReflectionLexerAndParserFactoryTest {
     static class FailingLexer extends TestGrammarLexer {
         public FailingLexer(CharStream input) {
             super(input);
-            throw new RuntimeException();
+            throw new NumberFormatException();
         }
     };
 
