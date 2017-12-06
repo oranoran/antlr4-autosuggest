@@ -34,107 +34,107 @@ public class AutoSuggesterTest {
 
     @Test
     public void suggest_withEmpty_shouldSuggestFirstToken() {
-        givenGrammar("rule: 'AB' 'CD'").whenInput("").thenExpect("AB");
+        givenGrammar("r: 'AB' 'CD'").whenInput("").thenExpect("AB");
     }
 
     @Test
     public void suggest_withSingleTokenComingUp_shouldSuggestSingleToken() {
-        givenGrammar("rule: 'AB' 'CD'").whenInput("AB").thenExpect("CD");
+        givenGrammar("r: 'AB' 'CD'").whenInput("AB").thenExpect("CD");
     }
 
     @Test
     public void suggest_withTokenAndAHalf_shouldCompleteTheToken() {
-        givenGrammar("rule: 'AB' 'CD'").whenInput("ABC").thenExpect("D");
+        givenGrammar("r: 'AB' 'CD'").whenInput("ABC").thenExpect("D");
     }
 
     @Test
     public void suggest_withHalfToken_shouldCompleteTheToken() {
-        givenGrammar("rule: 'AB' 'CD'").whenInput("A").thenExpect("B");
+        givenGrammar("r: 'AB' 'CD'").whenInput("A").thenExpect("B");
     }
 
     @Test
     public void suggest_withCompleteExpression_shouldNotSuggestAnything() {
-        givenGrammar("rule: 'AB' 'CD'").whenInput("ABCD").thenExpect();
+        givenGrammar("r: 'AB' 'CD'").whenInput("ABCD").thenExpect();
     }
 
     @Test
     public void suggest_withWrongCompletion_shouldNotSuggest() {
-        givenGrammar("rule: 'AB' 'CD'").whenInput("ABD").thenExpect();
+        givenGrammar("r: 'AB' 'CD'").whenInput("ABD").thenExpect();
     }
 
     @Test
     public void suggest_withParens_shouldSuggest() {
-        givenGrammar("rule: ('AB') ('CD')").whenInput("AB").thenExpect("CD");
+        givenGrammar("r: ('AB') ('CD')").whenInput("AB").thenExpect("CD");
     }
 
     @Test
     public void suggest_withOptional_shouldSuggest() {
-        givenGrammar("rule: 'A'? 'B'").whenInput("").thenExpect("A", "B");
+        givenGrammar("r: 'A'? 'B'").whenInput("").thenExpect("A", "B");
     }
 
     @Test
     public void suggest_withAlternativeTokens_shouldSuggest() {
-        givenGrammar("rule: 'A' | 'B'").whenInput("").thenExpect("A", "B");
+        givenGrammar("r: 'A' | 'B'").whenInput("").thenExpect("A", "B");
     }
 
     @Test
     public void suggest_withOptionalParserCompletion_shouldNotSuggest() {
-        givenGrammar("rule: 'A' 'B'?").whenInput("A").thenExpect();
+        givenGrammar("r: 'A' 'B'?").whenInput("A").thenExpect();
     }
 
     @Test
     public void suggest_withAlternativeParserRules_shouldSuggest() {
-        givenGrammar("rule: a | b", "a: 'A'", "b: 'B'").whenInput("").thenExpect("A", "B");
+        givenGrammar("r: a | b", "a: 'A'", "b: 'B'").whenInput("").thenExpect("A", "B");
     }
 
     @Test
     public void suggest_withTokenRange_shouldSuggestEntireRange() {
-        givenGrammar("rule: A", "A: [A-E]").whenInput("").thenExpect("A", "B", "C", "D", "E");
+        givenGrammar("r: A", "A: [A-E]").whenInput("").thenExpect("A", "B", "C", "D", "E");
     }
 
     @Test
     public void suggest_withTokenRangeMatchingPartial_shouldSuggestJustTheMatch() {
-        givenGrammar("rule: A", "A: [A-E] 'X'").whenInput("C").thenExpect("X");
+        givenGrammar("r: A", "A: [A-E] 'X'").whenInput("C").thenExpect("X");
     }
 
     @Test
     public void suggest_withTokenRangeInFragment_shouldNotSuggest() {
-        givenGrammar("rule: A", "fragment A: [A-Z]").whenInput("").thenExpect();
+        givenGrammar("r: A", "fragment A: [A-Z]").whenInput("").thenExpect();
     }
 
     @Test
     public void suggest_afterSkippedToken_shouldSuggest() {
-        givenGrammar("rule: 'A' 'B'", "WS: [ \\t] -> skip").whenInput("A ").thenExpect("B");
+        givenGrammar("r: 'A' 'B'", "WS: [ \\t] -> skip").whenInput("A ").thenExpect("B");
     }
 
     @Test
     public void suggest_beforeSkippedToken_shouldSuggest() {
-        givenGrammar("rule: 'A' 'B'", "WS: [ \\t] -> skip").whenInput("A").thenExpect("B");
+        givenGrammar("r: 'A' 'B'", "WS: [ \\t] -> skip").whenInput("A").thenExpect("B");
     }
 
     @Test
     public void suggest_whenCompletionIsWildcard_shouldNotSuggest() {
-        givenGrammar("rule: A", "A: 'A'*").whenInput("").thenExpect();
+        givenGrammar("r: A", "A: 'A'*").whenInput("").thenExpect();
     }
 
     @Test
     public void suggest_whenCompletionIsPlus_shouldSuggestOne() {
-        givenGrammar("rule: A", "A: 'A'+").whenInput("").thenExpect("A");
+        givenGrammar("r: A", "A: 'A'+").whenInput("").thenExpect("A");
     }
 
     @Test
     public void suggest_whenWildcardInMiddleOfToken_shouldSuggestWithoutIt() {
-        givenGrammar("rule: A", "A: 'A' 'B'* 'C'").whenInput("A").thenExpect("C");
+        givenGrammar("r: A", "A: 'A' 'B'* 'C'").whenInput("A").thenExpect("C");
     }
 
     @Test
     public void suggest_whenPlusInMiddleOfToken_shouldSuggestWithOneInstance() {
-        givenGrammar("rule: A", "A: 'A' 'B'+ 'C'").whenInput("A").thenExpect("BC");
+        givenGrammar("r: A", "A: 'A' 'B'+ 'C'").whenInput("A").thenExpect("BC");
     }
 
     @Test
     public void suggest_whenCompletionIsAFragment_shouldNotSuggest() {
-        givenGrammar("rule: 'A' B", "fragment B: 'B'").whenInput("A").thenExpect();
+        givenGrammar("r: 'A' B", "fragment B: 'B'").whenInput("A").thenExpect();
     }
 
     @Test

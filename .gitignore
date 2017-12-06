@@ -1,3 +1,7 @@
+# Generated JavaScript test files
+generatedTestsFromJava.spec.js
+testGrammars
+
 # Maven
 /target
 
