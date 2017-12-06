@@ -48,16 +48,8 @@ describe('Autosuggest', function () {
     var factory;
     var suggester;
 
-    var givenGrammar = function (lexerCtr, ParserCtr) {
-        factory = new class {
-            constructor() { }
-            createLexer(input) {
-                return new lexerCtr(input);
-            }
-            createParser(tokenStream) {
-                return new ParserCtr(tokenStream);
-            }
-        }()
+    var givenGrammar = function (lexerCtr, parserCtr) {
+        factory = new autosuggest.GrammarFactory(lexerCtr, parserCtr);
     };
     var whenInput = function (input) {
         suggester = new autosuggest.AutoSuggester(factory, input);
