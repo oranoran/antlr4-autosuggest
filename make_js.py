@@ -41,21 +41,20 @@ JS_CASE_TEMPLATE = r"""    it('should handle grammar "%(embeddable_grammar)s" wi
 """
 
 JS_FILE_TEMPLATE = r'''%(header_comment)s
-var antlr4 = require('antlr4');
-var autosuggest = require('../autosuggest');
+const autosuggest = require('../autosuggest');
 %(grammar_reqs)s
 
 describe('Autosuggest', function () {
-    var factory;
-    var suggester;
+    let factory;
+    let suggester;
 
-    var givenGrammar = function (lexerCtr, parserCtr) {
+    const givenGrammar = function (lexerCtr, parserCtr) {
         factory = new autosuggest.GrammarFactory(lexerCtr, parserCtr);
     };
-    var whenInput = function (input) {
+    const whenInput = function (input) {
         suggester = new autosuggest.AutoSuggester(factory, input);
     };
-    var thenExpect = function (expectedSuggestions) {
+    const thenExpect = function (expectedSuggestions) {
         expect(suggester.suggest().sort()).toEqual(expectedSuggestions.sort());
     };
 
@@ -131,8 +130,7 @@ def patch_lexer_file_for_atn(lexer_file):
         atn_patch = ATN_PATCH_TEMPLATE % {"lexer_name": lexer_name}
         f.write(atn_patch)
 
-def generate_grammars(all_grammars):
-    unique_grammars = list(sort_uniq(all_grammars))
+def generate_grammars(unique_grammars):
     tdir = tempfile.mkdtemp()
     for grammar in unique_grammars:
         generate_grammar(tdir, grammar)
@@ -142,15 +140,15 @@ def generate_grammars(all_grammars):
         patch_lexer_file_for_atn(f)
     shutil.rmtree(tdir)
 
-REQ_TEMPLATE = """var %(grammar_name)sLexer = require('./testGrammars/%(grammar_name)sLexer');
-var %(grammar_name)sParser = require('./testGrammars/%(grammar_name)sParser');
+REQ_TEMPLATE = """const %(grammar_name)sLexer = require('./testGrammars/%(grammar_name)sLexer');
+const %(grammar_name)sParser = require('./testGrammars/%(grammar_name)sParser');
 """
-def to_parser_req(test_case):
-    return REQ_TEMPLATE % test_case
+def to_parser_req(grammar):
+    return REQ_TEMPLATE % {"grammar_name": to_name(grammar)}
 
-def generate_test_code(test_cases):
+def generate_test_code(test_cases, unique_grammar_names):
     test_cases_code = "\n".join([JS_CASE_TEMPLATE % test_case for test_case in test_cases])
-    grammar_reqs = "".join([to_parser_req(tc) for tc in test_cases])
+    grammar_reqs = "".join([to_parser_req(tc) for tc in unique_grammar_names])
     header_comment = "// Generated " + time.strftime("%c") + " by " + os.path.basename(__file__) + " in antlr4-autosuggest project."
     test_code = JS_FILE_TEMPLATE % {
         "test_cases": test_cases_code,
@@ -164,6 +162,8 @@ def main():
     with open(JAVA_TEST_FILE) as f:
         content = f.readlines()
     content = [process(l) for l in content if line_is_relevant(l)]
-    generate_grammars([c["grammar"] for c in content])
-    generate_test_code(content)
+    all_grammars = [c["grammar"] for c in content]
+    unique_grammar_names = list(sort_uniq(all_grammars))
+    generate_grammars(unique_grammar_names)
+    generate_test_code(content, unique_grammar_names)
 main()
