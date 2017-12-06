@@ -45,17 +45,17 @@ const autosuggest = require('../autosuggest');
 %(grammar_reqs)s
 
 describe('Autosuggest', function () {
-    let factory;
     let suggester;
+    let completions;
 
     const givenGrammar = function (lexerCtr, parserCtr) {
-        factory = new autosuggest.GrammarFactory(lexerCtr, parserCtr);
+        suggester = autosuggest.autosuggester(lexerCtr, parserCtr);
     };
     const whenInput = function (input) {
-        suggester = new autosuggest.AutoSuggester(factory, input);
+        completions = suggester.autosuggest(input);
     };
     const thenExpect = function (expectedSuggestions) {
-        expect(suggester.suggest().sort()).toEqual(expectedSuggestions.sort());
+        expect(completions.sort()).toEqual(expectedSuggestions.sort());
     };
 
 %(test_cases)s
