@@ -139,6 +139,7 @@ public class AutoSuggester {
 
     private void parseSuggestionsAndAddValidOnes(ATNState parserState, Collection<String> suggestions) {
         for (String suggestion : suggestions) {
+            logger.debug("CHECKING suggestion: " + suggestion);
             Token addedToken = getAddedToken(suggestion);
             if (isParseableWithAddedToken(parserState, addedToken)) {
                 collectedSuggestions.add(suggestion);

@@ -38,6 +38,11 @@ public class AutoSuggesterTest {
     }
 
     @Test
+    public void suggest_withMultiCharInputAllAtoms_shouldCompleteIt() {
+        givenGrammar("r: 'ABC'").whenInput("AB").thenExpect("C");
+    }
+
+    @Test
     public void suggest_withSingleTokenComingUp_shouldSuggestSingleToken() {
         givenGrammar("r: 'AB' 'CD'").whenInput("AB").thenExpect("CD");
     }
@@ -95,6 +100,21 @@ public class AutoSuggesterTest {
     @Test
     public void suggest_withTokenRangeMatchingPartial_shouldSuggestJustTheMatch() {
         givenGrammar("r: A", "A: [A-E] 'X'").whenInput("C").thenExpect("X");
+    }
+
+    @Test
+    public void suggest_withSingleAtomTokenAndSetCompletion_shouldSuggest() {
+        givenGrammar("r: A", "A: 'AB' [C-E] 'X'").whenInput("AB").thenExpect("CX", "DX", "EX");
+    }
+
+    @Test
+    public void suggest_withAtomAndSetTokenAndSetCompletion_shouldSuggest() {
+        givenGrammar("r: A", "A: 'A' [B-C] [D-E]").whenInput("AB").thenExpect("D", "E");
+    }
+
+    @Test
+    public void suggest_withTwoSetsAndSetCompletion_shouldSuggest() {
+        givenGrammar("r: A", "A: [A-B] [C-D] [E-F]").whenInput("AD").thenExpect("E", "F");
     }
 
     @Test

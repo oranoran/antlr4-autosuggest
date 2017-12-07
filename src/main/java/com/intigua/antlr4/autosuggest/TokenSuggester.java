@@ -23,12 +23,14 @@ class TokenSuggester {
     private final Lexer lexer;
     private final Set<String> suggestions = new TreeSet<String>();
     private final List<Integer> visitedLexerStates = new ArrayList<>();
+    private String origPartialToken;
 
     public TokenSuggester(Lexer lexer) {
         this.lexer = lexer;
     }
 
     public Collection<String> suggest(ATNState parserState, String remainingText) {
+        this.origPartialToken = remainingText;
         ATNState lexerState = toLexerState(parserState);
         if (lexerState == null) {
             return suggestions;
@@ -50,66 +52,76 @@ class TokenSuggester {
         return lexerState;
     }
 
-    private void suggest(String completionSoFar, ATNState lexerState, String remainingText) {
+    private void suggest(String tokenSoFar, ATNState lexerState, String remainingText) {
+        logger.debug(
+                "SUGGEST: tokenSoFar=" + tokenSoFar + " remainingText=" + remainingText + " lexerState=" + lexerState);
         if (visitedLexerStates.contains(lexerState.stateNumber)) {
             return; // avoid infinite loop and stack overflow
         }
         visitedLexerStates.add(lexerState.stateNumber);
         try {
             Transition[] transitions = lexerState.getTransitions();
-            if (transitions.length == 0 && completionSoFar.length() > 0) {
-                suggestions.add(completionSoFar);
+            boolean tokenNotEmpty = tokenSoFar.length() > 0;
+            boolean noMoreCharactersInToken = (transitions.length == 0);
+            if (tokenNotEmpty && noMoreCharactersInToken) {
+                addSuggestedToken(tokenSoFar);
                 return;
             }
             for (Transition trans : transitions) {
-                suggestViaLexerTransition(completionSoFar, remainingText, trans);
+                suggestViaLexerTransition(tokenSoFar, remainingText, trans);
             }
         } finally {
             visitedLexerStates.remove(visitedLexerStates.size() - 1);
         }
     }
 
-    private void suggestViaLexerTransition(String completionSoFar, String remainingText, Transition trans) {
+    private void suggestViaLexerTransition(String tokenSoFar, String remainingText, Transition trans) {
         if (trans.isEpsilon()) {
-            suggest(completionSoFar, trans.target, remainingText);
+            suggest(tokenSoFar, trans.target, remainingText);
         } else if (trans instanceof AtomTransition) {
-            String transitionToken = getAddedTextFor((AtomTransition) trans);
-            if (transitionToken.startsWith(remainingText)) {
-                suggestViaNonEpsilonLexerTransition(completionSoFar, remainingText, transitionToken, trans.target);
+            String newTokenChar = getAddedTextFor((AtomTransition) trans);
+            if (remainingText.isEmpty() || remainingText.startsWith(newTokenChar)) {
+                logger.debug("LEXER TOKEN: " + newTokenChar + " remaining=" + remainingText);
+                suggestViaNonEpsilonLexerTransition(tokenSoFar, remainingText, newTokenChar, trans.target);
+            } else {
+                logger.debug("NONMATCHING LEXER TOKEN: " + newTokenChar + " remaining=" + remainingText);
             }
         } else if (trans instanceof SetTransition) {
             List<Integer> symbols = ((SetTransition) trans).label().toList();
             for (Integer symbol : symbols) {
-                String transitionToken = new String(Character.toChars(symbol));
-                if (transitionToken.startsWith(remainingText)) {
-                    suggestViaNonEpsilonLexerTransition(completionSoFar, remainingText, transitionToken, trans.target);
+                String newTokenChar = new String(Character.toChars(symbol));
+                if (remainingText.isEmpty() || remainingText.startsWith(newTokenChar)) {
+                    suggestViaNonEpsilonLexerTransition(tokenSoFar, remainingText, newTokenChar, trans.target);
                 }
             }
         }
     }
 
-    private void suggestViaNonEpsilonLexerTransition(String completionSoFar, String remainingText,
-            String transitionToken, ATNState targetState) {
-        String newTransitionToken = chopOffCommonStart(transitionToken, remainingText);
-        String newRemainingText = chopOffCommonStart(remainingText, transitionToken);
-        suggest(completionSoFar + newTransitionToken, targetState, newRemainingText);
+    private void suggestViaNonEpsilonLexerTransition(String tokenSoFar, String remainingText, String newTokenChar,
+            ATNState targetState) {
+        String newRemainingText = (remainingText.length() > 0) ? remainingText.substring(1) : remainingText;
+        suggest(tokenSoFar + newTokenChar, targetState, newRemainingText);
     }
 
     private void suggestViaParserTransition(ATNState parserState, String remainingText) {
         for (Transition transition : parserState.getTransitions()) {
             if (transition.isEpsilon()) {
                 suggestViaParserTransition(transition.target, remainingText);
-            }
-            else if (transition instanceof AtomTransition) {
+            } else if (transition instanceof AtomTransition) {
                 ATNState lexerState = toLexerState(((AtomTransition) transition).target);
                 suggest("", lexerState, remainingText);
             }
         }
     }
 
-    private String chopOffCommonStart(String remainingText, String transitionToken) {
-        int charsToChopOff = Math.min(transitionToken.length(), remainingText.length());
-        return remainingText.substring(charsToChopOff);
+    private void addSuggestedToken(String tokenToAdd) {
+        String justTheCompletionPart = chopOffCommonStart(tokenToAdd, this.origPartialToken);
+        suggestions.add(justTheCompletionPart);
+    }
+
+    private String chopOffCommonStart(String a, String b) {
+        int charsToChopOff = Math.min(b.length(), a.length());
+        return a.substring(charsToChopOff);
     }
 
     private String getAddedTextFor(AtomTransition transition) {
