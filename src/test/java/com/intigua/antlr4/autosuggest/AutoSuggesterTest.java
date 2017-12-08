@@ -182,6 +182,16 @@ public class AutoSuggesterTest {
         givenGrammar("r0: r1 | r2", "r1: 'AB'", "r2: 'CD'").whenInput("CD").thenExpect();
     }
 
+    @Test
+    public void suggest_withPartialMatchForTwoTokens_shouldSuggest() {
+        givenGrammar("r0: r1+", "r1: 'ABC' | 'ABCDE'").whenInput("AB").thenExpect("C", "CDE");
+    }
+
+    @Test
+    public void suggest_withTwoTokenAlternativesInSameRule_shouldSuggest() {
+        givenGrammar("r0: r1+", "r1: 'ABC' | 'XYZ'").whenInput("ABC").thenExpect();
+    }
+
     // @Test
     // public void suggest_withMultipleParseOptions_shouldSuggestAll() {
     // // Currently failing due to weird AST created by antlr4. Parser state 11

@@ -99,9 +99,7 @@ public class AutoSuggester {
                 } else if (trans instanceof AtomTransition) {
                     handleAtomicTransition((AtomTransition) trans, tokenListIndex);
                 } else {
-                    // If we ever get SetTransition - should recurse on each of its label.toList() - but could not
-                    // simulate this
-                    throw new IllegalArgumentException("Unsupported parser transition: " + toString(trans));
+                    handleSetTransition((SetTransition)trans, tokenListIndex);
                 }
             }
         } finally {
@@ -127,6 +125,20 @@ public class AutoSuggester {
             parseAndCollectTokenSuggestions(trans.target, tokenListIndex + 1);
         } else {
             logger.debug(indent + "Token " + nextToken + " NOT following transition: " + toString(trans));
+        }
+    }
+
+    private void handleSetTransition(SetTransition trans, int tokenListIndex) {
+        Token nextToken = inputTokens.get(tokenListIndex);
+        int nextTokenType = nextToken.getType();
+        for (int transitionTokenType : trans.label().toList()) {
+            boolean nextTokenMatchesTransition = (transitionTokenType == nextTokenType);
+            if (nextTokenMatchesTransition) {
+                logger.debug(indent + "Token " + nextToken + " following transition: " + toString(trans) + " to " + transitionTokenType);
+                parseAndCollectTokenSuggestions(trans.target, tokenListIndex + 1);
+            } else {
+                logger.debug(indent + "Token " + nextToken + " NOT following transition: " + toString(trans) + " to " + transitionTokenType);
+            }
         }
     }
 
