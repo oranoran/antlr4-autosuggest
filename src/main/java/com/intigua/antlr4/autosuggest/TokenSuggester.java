@@ -29,32 +29,24 @@ class TokenSuggester {
         this.lexer = lexer;
     }
 
-    public Collection<String> suggest(ATNState parserState, String remainingText) {
+    public Collection<String> suggest(List<Integer> nextParserTransitionLabels, String remainingText) {
+        logger.debug("Suggesting tokens for rule numbers: {}", nextParserTransitionLabels);
         this.origPartialToken = remainingText;
-        ATNState lexerState = toLexerState(parserState);
-        if (lexerState == null) {
-            return suggestions;
-        } else if (lexerState.getTransitions().length == 0) { // at end of token
-            suggestViaParserTransition(parserState, remainingText);
-        } else {
+        for (int nextParserTransitionLabel : nextParserTransitionLabels) {
+            int nextTokenRuleNumber = nextParserTransitionLabel - 1; // Count from 0 not from 1
+            ATNState lexerState = findLexerStateByRuleNumber(nextTokenRuleNumber);
             suggest("", lexerState, remainingText);
         }
         return suggestions;
     }
-
-    private ATNState toLexerState(ATNState parserState) {
-        int stateIndexInLexerAtn = lexer.getATN().states.indexOf(parserState);
-        if (stateIndexInLexerAtn < 0) {
-            logger.debug("No lexer state matches parser state " + parserState + ", not suggesting completions.");
-            return null;
-        }
-        ATNState lexerState = lexer.getATN().states.get(stateIndexInLexerAtn);
-        return lexerState;
+    
+    private ATNState findLexerStateByRuleNumber(int ruleNumber) {
+        return lexer.getATN().ruleToStartState[ruleNumber];
     }
 
     private void suggest(String tokenSoFar, ATNState lexerState, String remainingText) {
         logger.debug(
-                "SUGGEST: tokenSoFar=" + tokenSoFar + " remainingText=" + remainingText + " lexerState=" + lexerState);
+                "SUGGEST: tokenSoFar=" + tokenSoFar + " remainingText=" + remainingText + " lexerState=" + toString(lexerState));
         if (visitedLexerStates.contains(lexerState.stateNumber)) {
             return; // avoid infinite loop and stack overflow
         }
@@ -73,6 +65,11 @@ class TokenSuggester {
         } finally {
             visitedLexerStates.remove(visitedLexerStates.size() - 1);
         }
+    }
+
+    private String toString(ATNState lexerState) {
+        String ruleName = this.lexer.getRuleNames()[lexerState.ruleIndex];
+        return ruleName + " " + lexerState.getClass().getSimpleName() + " " + lexerState;
     }
 
     private void suggestViaLexerTransition(String tokenSoFar, String remainingText, Transition trans) {
@@ -97,21 +94,10 @@ class TokenSuggester {
         }
     }
 
-    private void suggestViaNonEpsilonLexerTransition(String tokenSoFar, String remainingText, String newTokenChar,
-            ATNState targetState) {
+    private void suggestViaNonEpsilonLexerTransition(String tokenSoFar, String remainingText,
+            String newTokenChar, ATNState targetState) {
         String newRemainingText = (remainingText.length() > 0) ? remainingText.substring(1) : remainingText;
         suggest(tokenSoFar + newTokenChar, targetState, newRemainingText);
-    }
-
-    private void suggestViaParserTransition(ATNState parserState, String remainingText) {
-        for (Transition transition : parserState.getTransitions()) {
-            if (transition.isEpsilon()) {
-                suggestViaParserTransition(transition.target, remainingText);
-            } else if (transition instanceof AtomTransition) {
-                ATNState lexerState = toLexerState(((AtomTransition) transition).target);
-                suggest("", lexerState, remainingText);
-            }
-        }
     }
 
     private void addSuggestedToken(String tokenToAdd) {

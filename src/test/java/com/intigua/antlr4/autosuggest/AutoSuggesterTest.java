@@ -16,18 +16,18 @@ import org.antlr.v4.tool.LexerGrammar;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.intigua.antlr4.autosuggest.AutoSuggester;
-import com.intigua.antlr4.autosuggest.LexerAndParserFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AutoSuggesterTest {
 
+    private final static String DEFAULT_LOG_LEVEL = "WARN";
     private LexerAndParserFactory lexerAndParserFactory;
     private Collection<String> suggestedCompletions;
 
     @BeforeClass
     public static void initLogging() {
-        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "DEBUG");
+        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, DEFAULT_LOG_LEVEL);
         System.setProperty(org.slf4j.impl.SimpleLogger.SHOW_LOG_NAME_KEY, "false");
         System.setProperty(org.slf4j.impl.SimpleLogger.SHOW_THREAD_NAME_KEY, "false");
     }
@@ -83,8 +83,8 @@ public class AutoSuggesterTest {
     }
 
     @Test
-    public void suggest_withOptionalParserCompletion_shouldNotSuggest() {
-        givenGrammar("r: 'A' 'B'?").whenInput("A").thenExpect();
+    public void suggest_withOptionalParserCompletion_shouldSuggest() {
+        givenGrammar("r: 'A' 'B'?").whenInput("A").thenExpect("B");
     }
 
     @Test
@@ -189,7 +189,30 @@ public class AutoSuggesterTest {
 
     @Test
     public void suggest_withTwoTokenAlternativesInSameRule_shouldSuggest() {
-        givenGrammar("r0: r1+", "r1: 'ABC' | 'XYZ'").whenInput("ABC").thenExpect();
+        givenGrammar("r0: r1+", "r1: 'ABC' | 'XYZ'").whenInput("ABC").thenExpect("ABC", "XYZ");
+    }
+    
+    @Test
+    public void suggest_withTokensUsedInReverseOrder_shouldSuggest() {
+        givenGrammar("r: F F F E D ", "C: 'c'", "D: 'd'", "E: 'e'", "F: 'f'").whenInput("fff").thenExpect("e");
+    }
+
+    @Test
+    public void suggest_withSkippedToken_shouldSuggest() {
+        givenGrammar("r: A B", "A: 'a'", "B: 'b'", "SP: ' ' -> skip").whenInput("a ").thenExpect("b");
+    }
+
+    @Test
+    public void suggest_withHiddenChannelToken_shouldSuggest() {
+        givenGrammar("r: A B", "A: 'a'", "B: 'b'", "SP: ' ' -> channel(HIDDEN)").whenInput("a ").thenExpect("b");
+    }
+    
+    /**
+     * @see https://github.com/oranoran/antlr4-autosuggest-js/issues/1
+     */
+    @Test
+    public void suggest_js_issue1() {
+      givenGrammar("varDecl: type ID '=' NUMBER ';'", "type: 'float' | 'int'", "ID: LETTER (LETTER | [0-9])*", "fragment LETTER : [a-zA-Z]", "NUMBER: DIGIT+", "fragment DIGIT : [0-9]", "SPACES: [ \\u000B\\t\\r\\n] -> channel(HIDDEN)").whenInput("int a").thenExpect("=");
     }
 
     // @Test
@@ -202,7 +225,23 @@ public class AutoSuggesterTest {
 
     private AutoSuggesterTest givenGrammar(String... grammarLines) {
         this.lexerAndParserFactory = loadGrammar(grammarLines);
+        printGrammarAtnIfNeeded();
         return this;
+    }
+
+    private void printGrammarAtnIfNeeded() {
+        Logger logger = LoggerFactory.getLogger(this.getClass());
+        if (!logger.isDebugEnabled()) {
+            return;
+        }
+        Lexer lexer = this.lexerAndParserFactory.createLexer(null);
+        Parser parser = this.lexerAndParserFactory.createParser(null);
+        String header = "\n===========  PARSER ATN  ====================\n";
+        String middle = "===========  LEXER ATN   ====================\n";
+        String footer = "===========  END OF ATN  ====================";
+        String parserAtn = AtnFormatter.printAtnFor(parser);
+        String lexerAtn = AtnFormatter.printAtnFor(lexer);
+        logger.debug(header + parserAtn + middle + lexerAtn + footer);
     }
 
     private AutoSuggesterTest whenInput(String input) {

@@ -2,6 +2,7 @@ package com.intigua.antlr4.autosuggest;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -24,6 +25,7 @@ import org.antlr.v4.runtime.atn.ATNState;
 import org.antlr.v4.runtime.atn.AtomTransition;
 import org.antlr.v4.runtime.atn.SetTransition;
 import org.antlr.v4.runtime.atn.Transition;
+import org.antlr.v4.runtime.misc.Interval;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -42,6 +44,7 @@ public class AutoSuggester {
     private List<? extends Token> inputTokens;
     private String untokenizedText = "";
     private ATN parserAtn;
+    private String[] parserRuleNames;
     private String indent = "";
 
     public AutoSuggester(LexerAndParserFactory lexerAndParserFactory, String input) {
@@ -51,14 +54,15 @@ public class AutoSuggester {
 
     public Collection<String> suggestCompletions() {
         tokenizeInput();
-        createParserAtn();
+        storeParserAtnAndRuleNames();
         runParserAtnAndCollectSuggestions();
         return collectedSuggestions;
     }
 
     private void tokenizeInput() {
-        Lexer lexer = createLexerWithUntokenizedTextDetection();
-        this.inputTokens = lexer.getAllTokens(); // side effect: also fills this.untokenizedText
+        Lexer lexer = createLexerWithUntokenizedTextDetection(); // side effect: also fills this.untokenizedText
+        List<? extends Token> allTokens = lexer.getAllTokens(); 
+        this.inputTokens = filterOutNonDefaultChannels(allTokens);
         if (logger.isDebugEnabled()) {
             logger.debug("TOKENS FOUND IN FIRST PASS:");
             for (Token token : inputTokens) {
@@ -67,10 +71,15 @@ public class AutoSuggester {
         }
     }
 
-    private void createParserAtn() {
+    private static List<? extends Token> filterOutNonDefaultChannels(List<? extends Token> tokens) {
+        return tokens.stream().filter(t -> t.getChannel() == 0).collect(Collectors.toList());
+    }
+
+    private void storeParserAtnAndRuleNames() {
         Parser parserForAtnOnly = lexerAndParserFactory.createParser(null);
         logger.debug("Parser rule names: " + StringUtils.join(parserForAtnOnly.getRuleNames(), ", "));
         parserAtn = parserForAtnOnly.getATN();
+        parserRuleNames = parserForAtnOnly.getRuleNames();
     }
 
     private void runParserAtnAndCollectSuggestions() {
@@ -86,7 +95,7 @@ public class AutoSuggester {
     private void parseAndCollectTokenSuggestions(ATNState parserState, int tokenListIndex) {
         indent = indent + "  ";
         try {
-            logger.debug(indent + "State: " + parserState + " (type: " + parserState.getClass().getSimpleName() + ")");
+            logger.debug(indent + "State: " + toString(parserState) );
             logger.debug(indent + "State available transitions: " + transitionsStr(parserState));
 
             if (!haveMoreTokens(tokenListIndex)) { // stop condition for recursion
@@ -143,10 +152,29 @@ public class AutoSuggester {
     }
 
     private void suggestNextTokensForParserState(ATNState parserState) {
+        List<Integer> transitionLabels = new ArrayList<>();
+        fillParserTransitionLabels(parserState, transitionLabels);
         TokenSuggester tokenSuggester = new TokenSuggester(createLexer());
-        Collection<String> suggestions = tokenSuggester.suggest(parserState, this.untokenizedText);
+        Collection<String> suggestions = tokenSuggester.suggest(transitionLabels, this.untokenizedText);
         parseSuggestionsAndAddValidOnes(parserState, suggestions);
         logger.debug(indent + "WILL SUGGEST TOKENS FOR STATE: " + parserState);
+    }
+
+    private void fillParserTransitionLabels(ATNState parserState, List<Integer> result) {
+        for (Transition trans : parserState.getTransitions()) {
+            if (trans.isEpsilon()) {
+                fillParserTransitionLabels(trans.target, result);
+            } else if (trans instanceof AtomTransition) {
+                int label = ((AtomTransition) trans).label;
+                result.add(label);
+            } else if (trans instanceof SetTransition) {
+                for (Interval interval : ((SetTransition) trans).label().getIntervals()) {
+                    for (int i = interval.a; i <= interval.b; ++i) {
+                        result.add(i);
+                    }
+                }
+            }
+        }
     }
 
     private void parseSuggestionsAndAddValidOnes(ATNState parserState, Collection<String> suggestions) {
@@ -165,7 +193,7 @@ public class AutoSuggester {
         String completedText = this.input + suggestedCompletion;
         Lexer completedTextLexer = this.createLexer(completedText);
         completedTextLexer.removeErrorListeners();
-        List<? extends Token> completedTextTokens = completedTextLexer.getAllTokens();
+        List<? extends Token> completedTextTokens = filterOutNonDefaultChannels(completedTextLexer.getAllTokens());
         if (completedTextTokens.size() <= inputTokens.size()) {
             return null; // Completion didn't yield whole token, could be just a token fragment
         }
@@ -203,8 +231,17 @@ public class AutoSuggester {
         return false;
     }
 
+    private String toString(ATNState parserState) {
+        String ruleName = this.parserRuleNames[parserState.ruleIndex];
+        return ruleName + " " + parserState.getClass().getSimpleName() + " " + parserState;
+    }
+
     private String toString(Transition t) {
-        return t.getClass().getSimpleName() + "->" + t.target;
+        String nameOrLabel = t.getClass().getSimpleName();
+        if (t instanceof AtomTransition) {
+            nameOrLabel += ' ' + this.createLexer().getVocabulary().getDisplayName(((AtomTransition) t).label);
+        }
+        return nameOrLabel + " -> " + toString(t.target);
     }
 
     private String transitionsStr(ATNState state) {

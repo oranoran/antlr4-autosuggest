@@ -83,6 +83,7 @@ def to_name(grammar):
     gname = re.sub(r'\(', '_LPAR_', gname)
     gname = re.sub(r'\)', '_RPAR_', gname)
     gname = re.sub(r'->', '_ARRW_', gname)
+    gname = re.sub(r'\\', '_BS_', gname)
     gname = re.sub(r'\W', '_', gname)
     return gname
 
@@ -92,14 +93,14 @@ def process(line):
     m = re.search(LINE_RE, line)
     if not m:
         raise "No match for relevant line: " + line
-    grammar = m.group(1)
+    grammar = m.group(1).replace('\\\\', '\\')
     input_text = m.group(2)
     output = m.group(3)
     grammar = re.sub('", *"', '; ', grammar) + ";\n"
     return {
         "grammar_name": to_name(grammar),
         "grammar": grammar,
-        "embeddable_grammar": grammar.strip().replace("'", "\\'"),
+        "embeddable_grammar": grammar.strip().replace("\\", "\\\\").replace("'", "\\'"),
         "input_text": input_text,
         "output": output
     }
@@ -137,7 +138,7 @@ def generate_grammars(unique_grammars):
     lexer_files = [os.path.basename(f) for f in glob.glob(GENERATED_JS_CODE_OUT_DIR+"/*Lexer.js")]
     for f in lexer_files:
         patch_lexer_file_for_atn(f)
-    shutil.rmtree(tdir)
+#    shutil.rmtree(tdir)
 
 REQ_TEMPLATE = """const %(grammar_name)sLexer = require('./testGrammars/%(grammar_name)sLexer');
 const %(grammar_name)sParser = require('./testGrammars/%(grammar_name)sParser');
