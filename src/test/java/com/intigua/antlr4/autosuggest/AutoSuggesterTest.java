@@ -215,6 +215,11 @@ public class AutoSuggesterTest {
       givenGrammar("varDecl: type ID '=' NUMBER ';'", "type: 'float' | 'int'", "ID: LETTER (LETTER | [0-9])*", "fragment LETTER : [a-zA-Z]", "NUMBER: DIGIT+", "fragment DIGIT : [0-9]", "SPACES: [ \\u000B\\t\\r\\n] -> channel(HIDDEN)").whenInput("int a").thenExpect("=");
     }
 
+    @Test
+    public void suggest_withRecursiveRule_shouldFollowTransitionOnce_andNotCauseStackOverflow() {
+        givenGrammar("a: b | a a", "b: 'B'").whenInput("B").thenExpect("B");
+    }
+
     // @Test
     // public void suggest_withMultipleParseOptions_shouldSuggestAll() {
     // // Currently failing due to weird AST created by antlr4. Parser state 11
@@ -225,6 +230,16 @@ public class AutoSuggesterTest {
 
     private AutoSuggesterTest givenGrammar(String... grammarLines) {
         this.lexerAndParserFactory = loadGrammar(grammarLines);
+        printGrammarAtnIfNeeded();
+        return this;
+    }
+
+    /*
+     * Used for testing with generated grammars, e.g. for checking out reported issues, before coming up with a more
+     * focused test
+     */
+    AutoSuggesterTest givenGrammar(Class<? extends Lexer> lexerClass, Class<? extends Parser> parserClass) {
+        this.lexerAndParserFactory = new ReflectionLexerAndParserFactory(lexerClass, parserClass);
         printGrammarAtnIfNeeded();
         return this;
     }

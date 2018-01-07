@@ -39,7 +39,7 @@ public class AutoSuggester {
 
     private final LexerAndParserFactory lexerAndParserFactory;
     private final String input;
-    private final Set<String> collectedSuggestions = new HashSet<String>();
+    private final Set<String> collectedSuggestions = new HashSet<>();
 
     private List<? extends Token> inputTokens;
     private String untokenizedText = "";
@@ -153,17 +153,28 @@ public class AutoSuggester {
 
     private void suggestNextTokensForParserState(ATNState parserState) {
         List<Integer> transitionLabels = new ArrayList<>();
-        fillParserTransitionLabels(parserState, transitionLabels);
+        fillParserTransitionLabels(parserState, transitionLabels, new HashSet<>());
+        
         TokenSuggester tokenSuggester = new TokenSuggester(createLexer());
         Collection<String> suggestions = tokenSuggester.suggest(transitionLabels, this.untokenizedText);
         parseSuggestionsAndAddValidOnes(parserState, suggestions);
         logger.debug(indent + "WILL SUGGEST TOKENS FOR STATE: " + parserState);
     }
 
-    private void fillParserTransitionLabels(ATNState parserState, List<Integer> result) {
+    private void fillParserTransitionLabels(ATNState parserState, List<Integer> result, Set<TransitionWrapper> visitedTransitions) {
         for (Transition trans : parserState.getTransitions()) {
+            TransitionWrapper transWrapper = new TransitionWrapper(parserState, trans);
+            if (visitedTransitions.contains(transWrapper)) {
+                logger.debug(indent + "Not following visited transition " + transWrapper);
+                continue;
+            }
             if (trans.isEpsilon()) {
-                fillParserTransitionLabels(trans.target, result);
+                try {
+                    visitedTransitions.add(transWrapper);
+                    fillParserTransitionLabels(trans.target, result, visitedTransitions);
+                } finally {
+                    visitedTransitions.remove(transWrapper);
+                }
             } else if (trans instanceof AtomTransition) {
                 int label = ((AtomTransition) trans).label;
                 result.add(label);
@@ -181,7 +192,7 @@ public class AutoSuggester {
         for (String suggestion : suggestions) {
             logger.debug("CHECKING suggestion: " + suggestion);
             Token addedToken = getAddedToken(suggestion);
-            if (isParseableWithAddedToken(parserState, addedToken)) {
+            if (isParseableWithAddedToken(parserState, addedToken, new HashSet<TransitionWrapper>())) {
                 collectedSuggestions.add(suggestion);
             } else {
                 logger.debug("DROPPING non-parseable suggestion: " + suggestion);
@@ -202,14 +213,23 @@ public class AutoSuggester {
         return newToken;
     }
 
-    private boolean isParseableWithAddedToken(ATNState parserState, Token newToken) {
+    private boolean isParseableWithAddedToken(ATNState parserState, Token newToken, Set<TransitionWrapper> visitedTransitions) {
         if (newToken == null) {
             return false;
         }
         for (Transition parserTransition : parserState.getTransitions()) {
-            if (parserTransition.isEpsilon()) { // Recurse through any epsilon transitions
-                if (isParseableWithAddedToken(parserTransition.target, newToken)) {
-                    return true;
+            if (parserTransition.isEpsilon()) { // Recurse through any epsilon transitionsStr
+                TransitionWrapper transWrapper = new TransitionWrapper(parserState, parserTransition);
+                if (visitedTransitions.contains(transWrapper)) {
+                    continue;
+                }
+                visitedTransitions.add(transWrapper);
+                try {
+                    if (isParseableWithAddedToken(parserTransition.target, newToken, visitedTransitions)) {
+                        return true;
+                    }
+                } finally {
+                    visitedTransitions.remove(transWrapper);
                 }
             } else if (parserTransition instanceof AtomTransition) {
                 AtomTransition parserAtomTransition = (AtomTransition) parserTransition;
