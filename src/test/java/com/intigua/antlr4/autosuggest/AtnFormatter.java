@@ -29,9 +29,9 @@ public class AtnFormatter {
      * Does most of the heavy lifting, leaving how specific transitions are printed to subclasses.
      */
     private abstract static class BaseAtnPrinter<R extends Recognizer<?, ?>> {
-        StringBuilder result = new StringBuilder();
-        Set<Integer> visitedStates = new TreeSet<Integer>();
-        R recognizer;
+        private StringBuilder result = new StringBuilder();
+        private Set<Integer> visitedStates = new TreeSet<Integer>();
+        protected R recognizer;
 
         private BaseAtnPrinter(R recognizer) {
             this.recognizer = recognizer;
