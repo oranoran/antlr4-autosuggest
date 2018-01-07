@@ -165,7 +165,7 @@ public class AutoSuggester {
         for (Transition trans : parserState.getTransitions()) {
             TransitionWrapper transWrapper = new TransitionWrapper(parserState, trans);
             if (visitedTransitions.contains(transWrapper)) {
-                logger.debug(indent + "Not following visited transition " + transWrapper);
+                logger.debug(indent + "Not following visited " + transWrapper);
                 continue;
             }
             if (trans.isEpsilon()) {

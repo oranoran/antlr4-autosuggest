@@ -44,4 +44,10 @@ public class TransitionWrapper {
         return true;
     }
 
+    @Override
+    public String toString() {
+        return transition.getClass().getSimpleName() + " from " + source + " to " + transition.target;
+    }
+
+    
 }
