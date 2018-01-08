@@ -2,6 +2,7 @@ package com.intigua.antlr4.autosuggest;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
+import static com.intigua.antlr4.autosuggest.CasePreference.*;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -24,6 +25,7 @@ public class AutoSuggesterTest {
     private final static String DEFAULT_LOG_LEVEL = "WARN";
     private LexerAndParserFactory lexerAndParserFactory;
     private Collection<String> suggestedCompletions;
+    private CasePreference casePreference = null;
 
     @BeforeClass
     public static void initLogging() {
@@ -221,6 +223,31 @@ public class AutoSuggesterTest {
     }
 
     @Test
+    public void suggest_withDefaultCasePreference_shouldSuggestBoth() {
+        givenGrammar("r: AB", "AB: A B", "fragment A: 'A' | 'a'", "fragment B: 'B' | 'b'").whenInput("").thenExpect("ab", "AB", "aB", "Ab");
+    }
+
+    @Test
+    public void suggest_withNullCasePreference_shouldSuggestBoth() {
+        givenGrammar("r: AB", "AB: A B", "fragment A: 'A' | 'a'", "fragment B: 'B' | 'b'").withCasePreference(null).whenInput("").thenExpect("ab", "AB", "aB", "Ab");
+    }
+
+    @Test
+    public void suggest_withExplicitNoCasePreference_shouldSuggestBoth() {
+        givenGrammar("r: AB", "AB: A B", "fragment A: 'A' | 'a'", "fragment B: 'B' | 'b'").withCasePreference(BOTH).whenInput("").thenExpect("ab", "AB", "aB", "Ab");
+    }
+
+    @Test
+    public void suggest_withUppercasePreference_shouldSuggestJustUpper() {
+        givenGrammar("r: AB", "AB: A B", "fragment A: 'A' | 'a'", "fragment B: 'B' | 'b'").withCasePreference(UPPER).whenInput("").thenExpect("AB");
+    }
+
+    @Test
+    public void suggest_withLowercasePreference_shouldSuggestJustLower() {
+        givenGrammar("r: AB", "AB: A B", "fragment A: 'A' | 'a'", "fragment B: 'B' | 'b'").withCasePreference(LOWER).whenInput("").thenExpect("ab");
+    }
+
+    @Test
     public void suggest_withEofAfterOptional_shouldSuggest() {
         givenGrammar("r: A B? EOF", "A: 'A'", "B: 'B'").whenInput("A").thenExpect("B");
     }
@@ -239,11 +266,16 @@ public class AutoSuggesterTest {
         return this;
     }
 
+    private AutoSuggesterTest withCasePreference(CasePreference casePreference) {
+        this.casePreference = casePreference;
+        return this;
+    }
+
     /*
      * Used for testing with generated grammars, e.g. for checking out reported issues, before coming up with a more
      * focused test
      */
-    AutoSuggesterTest givenGrammar(Class<? extends Lexer> lexerClass, Class<? extends Parser> parserClass) {
+    protected AutoSuggesterTest givenGrammar(Class<? extends Lexer> lexerClass, Class<? extends Parser> parserClass) {
         this.lexerAndParserFactory = new ReflectionLexerAndParserFactory(lexerClass, parserClass);
         printGrammarAtnIfNeeded();
         return this;
@@ -265,7 +297,9 @@ public class AutoSuggesterTest {
     }
 
     private AutoSuggesterTest whenInput(String input) {
-        this.suggestedCompletions = new AutoSuggester(this.lexerAndParserFactory, input).suggestCompletions();
+        AutoSuggester suggester = new AutoSuggester(this.lexerAndParserFactory, input);
+        suggester.setCasePreference(this.casePreference);
+        this.suggestedCompletions = suggester.suggestCompletions();
         return this;
     }
 

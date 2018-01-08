@@ -2,7 +2,6 @@ package com.intigua.antlr4.autosuggest;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -46,12 +45,17 @@ public class AutoSuggester {
     private ATN parserAtn;
     private String[] parserRuleNames;
     private String indent = "";
+    private CasePreference casePreference = CasePreference.BOTH;
 
     public AutoSuggester(LexerAndParserFactory lexerAndParserFactory, String input) {
         this.lexerAndParserFactory = lexerAndParserFactory;
         this.input = input;
     }
 
+    public void setCasePreference(CasePreference casePreference) {
+        this.casePreference = casePreference;
+    }
+    
     public Collection<String> suggestCompletions() {
         tokenizeInput();
         storeParserAtnAndRuleNames();
@@ -152,16 +156,15 @@ public class AutoSuggester {
     }
 
     private void suggestNextTokensForParserState(ATNState parserState) {
-        List<Integer> transitionLabels = new ArrayList<>();
+        Set<Integer> transitionLabels = new HashSet<>();
         fillParserTransitionLabels(parserState, transitionLabels, new HashSet<>());
-        
-        TokenSuggester tokenSuggester = new TokenSuggester(createLexer());
+        TokenSuggester tokenSuggester = new TokenSuggester(createLexer(), this.casePreference);
         Collection<String> suggestions = tokenSuggester.suggest(transitionLabels, this.untokenizedText);
         parseSuggestionsAndAddValidOnes(parserState, suggestions);
         logger.debug(indent + "WILL SUGGEST TOKENS FOR STATE: " + parserState);
     }
 
-    private void fillParserTransitionLabels(ATNState parserState, List<Integer> result, Set<TransitionWrapper> visitedTransitions) {
+    private void fillParserTransitionLabels(ATNState parserState, Collection<Integer> result, Set<TransitionWrapper> visitedTransitions) {
         for (Transition trans : parserState.getTransitions()) {
             TransitionWrapper transWrapper = new TransitionWrapper(parserState, trans);
             if (visitedTransitions.contains(transWrapper)) {

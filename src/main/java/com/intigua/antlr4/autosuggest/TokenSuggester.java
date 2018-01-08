@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.atn.ATNState;
@@ -21,16 +22,23 @@ class TokenSuggester {
     private static final Logger logger = LoggerFactory.getLogger(TokenSuggester.class);
 
     private final Lexer lexer;
+    private final CasePreference casePreference;
+
     private final Set<String> suggestions = new TreeSet<String>();
     private final List<Integer> visitedLexerStates = new ArrayList<>();
     private String origPartialToken;
 
     public TokenSuggester(Lexer lexer) {
-        this.lexer = lexer;
+        this(lexer, CasePreference.BOTH);
     }
 
-    public Collection<String> suggest(List<Integer> nextParserTransitionLabels, String remainingText) {
-        logger.debug("Suggesting tokens for rule numbers: {}", nextParserTransitionLabels);
+    public TokenSuggester(Lexer lexer, CasePreference casePreference) {
+        this.lexer = lexer;
+        this.casePreference = casePreference;
+    }
+
+    public Collection<String> suggest(Collection<Integer> nextParserTransitionLabels, String remainingText) {
+        logTokensUsedForSuggestion(nextParserTransitionLabels);
         this.origPartialToken = remainingText;
         for (int nextParserTransitionLabel : nextParserTransitionLabels) {
             int nextTokenRuleNumber = nextParserTransitionLabel - 1; // Count from 0 not from 1
@@ -39,7 +47,15 @@ class TokenSuggester {
         }
         return suggestions;
     }
-    
+
+    private void logTokensUsedForSuggestion(Collection<Integer> ruleIndices) {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }
+        String ruleNames = ruleIndices.stream().map(r -> lexer.getRuleNames()[r]).collect(Collectors.joining(" "));
+        logger.debug("Suggesting tokens for lexer rules: " + ruleNames, " ");
+    }
+
     private ATNState findLexerStateByRuleNumber(int ruleNumber) {
         return lexer.getATN().ruleToStartState[ruleNumber];
     }
@@ -86,9 +102,11 @@ class TokenSuggester {
         } else if (trans instanceof SetTransition) {
             List<Integer> symbols = ((SetTransition) trans).label().toList();
             for (Integer symbol : symbols) {
-                String newTokenChar = new String(Character.toChars(symbol));
-                if (remainingText.isEmpty() || remainingText.startsWith(newTokenChar)) {
-                    suggestViaNonEpsilonLexerTransition(tokenSoFar, remainingText, newTokenChar, trans.target);
+                char[] charArr = Character.toChars(symbol);
+                String charStr = new String(charArr);
+                boolean shouldIgnoreCase = shouldIgnoreThisCase(charArr[0], symbols); // TODO: check for non-BMP
+                if (!shouldIgnoreCase && (remainingText.isEmpty() || remainingText.startsWith(charStr))) {
+                    suggestViaNonEpsilonLexerTransition(tokenSoFar, remainingText, charStr, trans.target);
                 }
             }
         }
@@ -113,4 +131,21 @@ class TokenSuggester {
     private String getAddedTextFor(AtomTransition transition) {
         return new String(Character.toChars(transition.label));
     }
+
+    private boolean shouldIgnoreThisCase(char transChar, List<Integer> allTransChars) {
+        if (this.casePreference == null) {
+            return false;
+        }
+        switch(this.casePreference) {
+        case BOTH:
+            return false;
+        case LOWER:
+            return Character.isUpperCase(transChar) && allTransChars.contains((int)Character.toLowerCase(transChar));
+        case UPPER:
+            return Character.isLowerCase(transChar) && allTransChars.contains((int)Character.toUpperCase(transChar));
+        default:
+            return false;
+        }
+    }
+
 }
