@@ -220,6 +220,11 @@ public class AutoSuggesterTest {
         givenGrammar("a: b | a a", "b: 'B'").whenInput("B").thenExpect("B");
     }
 
+    @Test
+    public void suggest_withEofAfterOptional_shouldSuggest() {
+        givenGrammar("r: A B? EOF", "A: 'A'", "B: 'B'").whenInput("A").thenExpect("B");
+    }
+
     // @Test
     // public void suggest_withMultipleParseOptions_shouldSuggestAll() {
     // // Currently failing due to weird AST created by antlr4. Parser state 11

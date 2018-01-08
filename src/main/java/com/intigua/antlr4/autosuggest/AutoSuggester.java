@@ -177,7 +177,9 @@ public class AutoSuggester {
                 }
             } else if (trans instanceof AtomTransition) {
                 int label = ((AtomTransition) trans).label;
-                result.add(label);
+                if (label >= 1) { // EOF would be -1
+                    result.add(label);
+                }
             } else if (trans instanceof SetTransition) {
                 for (Interval interval : ((SetTransition) trans).label().getIntervals()) {
                     for (int i = interval.a; i <= interval.b; ++i) {
