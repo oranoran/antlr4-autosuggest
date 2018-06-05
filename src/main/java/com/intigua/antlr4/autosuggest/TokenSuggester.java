@@ -52,7 +52,7 @@ class TokenSuggester {
         if (!logger.isDebugEnabled()) {
             return;
         }
-        String ruleNames = ruleIndices.stream().map(r -> lexer.getRuleNames()[r]).collect(Collectors.joining(" "));
+        String ruleNames = ruleIndices.stream().map(r -> lexer.getRuleNames()[r-1]).collect(Collectors.joining(" "));
         logger.debug("Suggesting tokens for lexer rules: " + ruleNames, " ");
     }
 
