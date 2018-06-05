@@ -4,8 +4,10 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -46,6 +48,8 @@ public class AutoSuggester {
     private String[] parserRuleNames;
     private String indent = "";
     private CasePreference casePreference = CasePreference.BOTH;
+
+    private Map<ATNState, Integer> parserStateToTokenListIndexWhereLastVisited = new HashMap<>();
 
     public AutoSuggester(LexerAndParserFactory lexerAndParserFactory, String input) {
         this.lexerAndParserFactory = lexerAndParserFactory;
@@ -98,6 +102,12 @@ public class AutoSuggester {
      */
     private void parseAndCollectTokenSuggestions(ATNState parserState, int tokenListIndex) {
         indent = indent + "  ";
+        if (didVisitParserStateOnThisTokenIndex(parserState, tokenListIndex)) {
+            logger.debug(indent + "State " + parserState + " had already been visited while processing token "
+                    + tokenListIndex + ", backtracking to avoid infinite loop.");
+            return;
+        }
+        Integer previousTokenListIndexForThisState = setParserStateLastVisitedOnThisTokenIndex(parserState, tokenListIndex);
         try {
             logger.debug(indent + "State: " + toString(parserState) );
             logger.debug(indent + "State available transitions: " + transitionsStr(parserState));
@@ -117,6 +127,20 @@ public class AutoSuggester {
             }
         } finally {
             indent = indent.substring(2);
+            setParserStateLastVisitedOnThisTokenIndex(parserState, previousTokenListIndexForThisState);
+        }
+    }
+
+    private boolean didVisitParserStateOnThisTokenIndex(ATNState parserState, Integer currentTokenListIndex) {
+        Integer lastVisitedThisStateAtTokenListIndex = parserStateToTokenListIndexWhereLastVisited.get(parserState);
+        return currentTokenListIndex.equals(lastVisitedThisStateAtTokenListIndex);
+    }
+
+    private Integer setParserStateLastVisitedOnThisTokenIndex(ATNState parserState, Integer tokenListIndex) {
+        if (tokenListIndex == null) {
+            return parserStateToTokenListIndexWhereLastVisited.remove(parserState);
+        } else {
+            return parserStateToTokenListIndexWhereLastVisited.put(parserState, tokenListIndex);
         }
     }
 
@@ -258,7 +282,7 @@ public class AutoSuggester {
 
     private String toString(ATNState parserState) {
         String ruleName = this.parserRuleNames[parserState.ruleIndex];
-        return ruleName + " " + parserState.getClass().getSimpleName() + " " + parserState;
+        return "*" + ruleName + "* " + parserState.getClass().getSimpleName() + " " + parserState;
     }
 
     private String toString(Transition t) {

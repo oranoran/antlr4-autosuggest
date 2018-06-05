@@ -217,6 +217,14 @@ public class AutoSuggesterTest {
       givenGrammar("varDecl: type ID '=' NUMBER ';'", "type: 'float' | 'int'", "ID: LETTER (LETTER | [0-9])*", "fragment LETTER : [a-zA-Z]", "NUMBER: DIGIT+", "fragment DIGIT : [0-9]", "SPACES: [ \\u000B\\t\\r\\n] -> channel(HIDDEN)").whenInput("int a").thenExpect("=");
     }
 
+    /**
+     * @see https://github.com/oranoran/antlr4-autosuggest-js/issues/6
+     */
+    @Test
+    public void suggest_js_issue6() {
+        givenGrammar("clause: clause AND clause | action", "action: 'action'", "AND: 'AND'").whenInput("action AND").thenExpect();
+    }
+
     @Test
     public void suggest_withRecursiveRule_shouldFollowTransitionOnce_andNotCauseStackOverflow() {
         givenGrammar("a: b | a a", "b: 'B'").whenInput("B").thenExpect("B");
