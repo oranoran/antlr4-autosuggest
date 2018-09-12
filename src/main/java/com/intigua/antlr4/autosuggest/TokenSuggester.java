@@ -22,7 +22,6 @@ class TokenSuggester {
 
     private final LexerWrapper lexerWrapper;
     private final CasePreference casePreference;
-    private final String remainingText;
 
     private final Set<String> suggestions = new TreeSet<String>();
     private final List<Integer> visitedLexerStates = new ArrayList<>();
@@ -32,19 +31,18 @@ class TokenSuggester {
         this(input, lexerWrapper, CasePreference.BOTH);
     }
 
-    public TokenSuggester(String remainingText, LexerWrapper lexerWrapper, CasePreference casePreference) {
-        this.remainingText = remainingText;
+    public TokenSuggester(String origPartialToken, LexerWrapper lexerWrapper, CasePreference casePreference) {
+        this.origPartialToken = origPartialToken;
         this.lexerWrapper = lexerWrapper;
         this.casePreference = casePreference;
     }
 
     public Collection<String> suggest(Collection<Integer> nextParserTransitionLabels) {
         logTokensUsedForSuggestion(nextParserTransitionLabels);
-        this.origPartialToken = remainingText;
         for (int nextParserTransitionLabel : nextParserTransitionLabels) {
             int nextTokenRuleNumber = nextParserTransitionLabel - 1; // Count from 0 not from 1
             ATNState lexerState = this.lexerWrapper.findStateByRuleNumber(nextTokenRuleNumber);
-            suggest("", lexerState, remainingText);
+            suggest("", lexerState, origPartialToken);
         }
         return suggestions;
 //        return suggestions.stream().filter(s -> this.lexerWrapper.isValidSuggestion(input, s)).collect(Collectors.toList());
